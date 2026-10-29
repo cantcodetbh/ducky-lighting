@@ -7,6 +7,11 @@ if os.environ.get('GITHUB_ACTIONS')!='true':
 def run(args,**kwargs):
     return subprocess.run([str(a) for a in args],check=True,**kwargs)
 result={'platform':sys.platform,'USB_calls':0,'firmware_writes':0}
+def verify_worker(directory):
+    worker=directory/('DuckyFirmwareWorker.exe' if sys.platform=='win32' else 'DuckyFirmwareWorker')
+    data=json.loads(subprocess.check_output([str(worker),'--self-test'],text=True))
+    assert data['ok'] and data['actual_USB_calls']==0
+    result['installed_firmware_worker_verified']=True
 if sys.platform=='darwin':
     image=next((ROOT/'release').glob('*.dmg'))
     mount=ROOT/'build/installer-mount';mount.mkdir(exist_ok=True)
@@ -17,6 +22,7 @@ if sys.platform=='darwin':
         info=plistlib.loads((app/'Contents/Info.plist').read_bytes())
         assert info['CFBundleURLTypes'][0]['CFBundleURLSchemes']==['ducky-lighting']
         run([app/'Contents/Resources/companion/ducky-companion','--self-test'])
+        verify_worker(app/'Contents/Resources/companion')
         assert (mount/'Applications').is_symlink()
         result.update(container_mounted=True,signature_verified=True,frozen_self_test=True,url_scheme_declared=True)
     finally:run(['hdiutil','detach',mount])
@@ -28,6 +34,7 @@ elif sys.platform=='win32':
     run([installer,'/S'])
     try:
         run([install/'DuckyLighting.exe','--self-test'])
+        verify_worker(install)
         keypath=r'Software\Classes\ducky-lighting\shell\open\command'
         with winreg.OpenKey(winreg.HKEY_CURRENT_USER,keypath) as key:
             command=winreg.QueryValueEx(key,'')[0]
@@ -48,9 +55,10 @@ else:
     run(['sudo','dpkg','--install',package])
     try:
         run(['/opt/ducky-lighting/DuckyLighting','--self-test'])
+        verify_worker(Path('/opt/ducky-lighting'))
         desktop=Path('/usr/share/applications/ducky-lighting.desktop').read_text()
         assert 'x-scheme-handler/ducky-lighting' in desktop
-        assert Path('/usr/lib/udev/rules.d/70-ducky-lighting.rules').exists()
+        assert '0416' in Path('/usr/lib/udev/rules.d/70-ducky-lighting.rules').read_text()
         result.update(installed=True,frozen_self_test=True,url_handler_declared=True)
     finally:
         run(['sudo','dpkg','--remove','ducky-lighting'])

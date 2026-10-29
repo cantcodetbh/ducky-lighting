@@ -32,8 +32,12 @@ class Safety(unittest.TestCase):
         self.fail('Virtual programmer failed to finish')
     def test_policy_only_enumerates_and_unsupported_platform_cannot_flash(self):
         p=self.fw.policy({'capabilities':{}});self.assertTrue(p['flashing_enabled']);self.assertEqual(self.runner.calls,[['--devices']])
-        self.fw.platform='win32';self.assertFalse(self.fw.policy({})['flashing_enabled'])
+        self.fw.platform='unsupported';self.assertFalse(self.fw.policy({})['flashing_enabled'])
         with self.assertRaises(ValueError):self.check()
+    def test_all_three_platforms_expose_confirmed_firmware_flow(self):
+        for platform in ('darwin','win32','linux'):
+            self.fw.platform=platform;self.assertTrue(self.fw.policy({})['flashing_enabled'])
+            self.assertTrue(self.check()['configuration_verified'])
     def test_exact_image_extraction_and_no_arbitrary_file(self):
         for data in (b'MZ',bytes(3307520)):
             with self.assertRaises(ValueError):construct_images(data)

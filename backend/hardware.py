@@ -63,7 +63,8 @@ class Hardware:
         finally:self.lock.release()
     def portable_command(self,action,payload,device_id):
         from runtime import FROZEN
-        command=[sys.executable,'--hid-worker'] if FROZEN else [sys.executable,str(ROOT/'backend/portable_worker.py')]
+        from firmware_ipc import worker_command
+        command=[*worker_command(),'--rgb'] if FROZEN else [sys.executable,str(ROOT/'backend/portable_worker.py')]
         try:
             p=subprocess.run(command,input=json.dumps({'action':action,'payload':payload,'device_id':device_id}),capture_output=True,text=True,timeout=10)
             result=json.loads(p.stdout)

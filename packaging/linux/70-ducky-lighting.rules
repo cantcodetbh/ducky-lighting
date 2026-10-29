@@ -1,2 +1,5 @@
-# Only the normal Ducky HID device, not the generic Nuvoton loader.
+# Active local-user access to normal RGB and the known Nuvoton ISP HID interface.
+# The loader ID is shared; the app also checks descriptor, chip and configuration.
 SUBSYSTEM=="hidraw", ATTRS{idVendor}=="3233", ATTRS{idProduct}=="6301", TAG+="uaccess"
+
+SUBSYSTEM=="hidraw", ATTRS{idVendor}=="0416", ATTRS{idProduct}=="3f00", TAG+="uaccess"

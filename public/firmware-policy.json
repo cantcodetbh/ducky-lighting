@@ -1,1 +1,1 @@
-{"ok": true, "state": "hosted", "flashing_enabled": false, "writer_present": false, "images_bundled": false, "device": {"connected": false}, "message": "Experimental firmware installation runs only in the local macOS companion; opening a hosted scene never starts flashing."}
+{"ok": true, "state": "hosted", "flashing_enabled": false, "writer_present": false, "images_bundled": false, "device": {"connected": false}, "message": "Experimental firmware installation runs only in the local companion on macOS, Windows or Linux; opening a hosted scene never starts flashing."}

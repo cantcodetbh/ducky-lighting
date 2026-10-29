@@ -43,7 +43,7 @@ def main():
         try:
             status=json.load(urllib.request.urlopen(base+'/api/status'));policy=json.load(urllib.request.urlopen(base+'/api/firmware'));page=urllib.request.urlopen(base).read()
             assert status['mode']=='demo' and policy['flashing_enabled'] is False and policy['writer_present'] is False and b'Ducky Lighting' in page
-            print(json.dumps({'ok':True,'version':VERSION,'frozen':bool(getattr(sys,'frozen',False)),'static_assets':True,'firmware_writer_present':(ROOT/'build/ducky-firmware').is_file(),'USB_calls':0}))
+            print(json.dumps({'ok':True,'version':VERSION,'frozen':bool(getattr(sys,'frozen',False)),'static_assets':True,'firmware_writer_present':(ROOT/'build/ducky-firmware').is_file() or (Path(sys.executable).parent/('DuckyFirmwareWorker.exe' if sys.platform=='win32' else 'DuckyFirmwareWorker')).is_file(),'USB_calls':0}))
         finally:server.shutdown();server.server_close();thread.join()
         return 0
     state=data_root();state.mkdir(parents=True,exist_ok=True)

@@ -1,4 +1,4 @@
-"""Experimental, fixed-image macOS APROM update coordinator. No automatic programming."""
+"""Experimental, fixed-image cross-platform APROM update coordinator. No automatic programming."""
 import base64,hashlib,json,secrets,subprocess,sys,threading,time,struct,os
 from pathlib import Path
 from runtime import ROOT,data_root,VERSION
@@ -53,14 +53,23 @@ def audit(events,image,inspect=False):
 class Firmware:
     def __init__(self,hardware,directory=None,runner=None,platform=None):
         self.hardware=hardware;self.directory=Path(directory) if directory else data_root()/'firmware';self.runner=runner;self.platform=platform or sys.platform
-        self.lock=threading.RLock();self.plan=None;self.spent=set();self.job=None;self.busy=False
+        self.lock=threading.RLock();self.plan=None;self.spent=set();self.job=None;self.busy=False;self.worker=None;blocked=[]
         # An interrupted companion must not offer a replay on the same loader connection.
-        for path in sorted(self.directory.glob('attempt-*.json'))[-64:]:
+        for path in sorted(self.directory.glob('attempt-*.json'),key=lambda path:path.stat().st_mtime)[-64:]:
             try:
                 old=json.loads(path.read_text())['job'];self.spent.add(old['loader_device_id'])
+                if old.get('loader_transport_id'):blocked.append(old['loader_transport_id'])
                 if old['state']=='programming':self.job={**old,'state':'failed','message':'A previous companion session ended while programming. The result is unknown. Reconnect into the loader for a fresh check; do not resume the old attempt.'}
             except (OSError,ValueError,KeyError,TypeError):pass
-    def available(self):return self.platform=='darwin' and (self.runner is not None or NATIVE.is_file())
+        from firmware_hid import Discovery
+        self.discovery=Discovery(blocked)
+    def available(self):
+        if self.platform not in ('darwin','win32','linux'):return False
+        if self.runner is not None:return True
+        if self.platform=='darwin':return NATIVE.is_file()
+        import importlib.util
+        from firmware_ipc import worker_command
+        return importlib.util.find_spec('hid') is not None and Path(worker_command()[-1]).is_file()
     def invoke(self,args):
         if self.runner:return self.runner(args)
         p=subprocess.run([str(NATIVE),*args],capture_output=True,text=True,timeout=15)
@@ -69,8 +78,10 @@ class Firmware:
         return events
     def loader(self):
         if not self.available():return None
-        try:return self.invoke(['--devices'])[0].get('loader')
-        except (OSError,ValueError,subprocess.SubprocessError,IndexError):return None
+        try:
+            if self.platform!='darwin' and self.runner is None:return self.discovery.status()
+            return self.invoke(['--devices'])[0].get('loader')
+        except (OSError,ValueError,ImportError,subprocess.SubprocessError,IndexError):return None
     def images(self):
         try:
             images={name:(self.directory/(name+'.bin')).read_bytes() for name in ('candidate','restore')}
@@ -84,12 +95,13 @@ class Firmware:
               'state':'already_supported' if supported else 'experimental' if available else 'platform_unavailable','supported_research_model':'DKME2061ST',
               'device':{'connected':device.get('connected',False),'firmware':device.get('firmware'),'mode':device.get('mode','demo')},'loader':None if self.busy else self.loader(),
               'job':dict(self.job) if self.job else None,'recovery_guaranteed':False,'platform':self.platform,'message':RISK,
-              'platform_detail':'Firmware installation is available only through the macOS companion. Windows/Linux RGB transports are experimental; firmware programming is not enabled on those operating systems.'}
+              'platform_detail':'Experimental firmware installation is available on macOS, Windows and Linux. Windows/Linux physical USB flashing is unverified. Linux requires the included HID permission rule and reconnection; Windows uses its built-in HID driver.'}
     def prepare(self,body):
         if body=={'download_official':True}:
             import urllib.request,ssl
             # Frozen Python must not depend on a developer's Homebrew certificate path.
-            ca='/etc/ssl/cert.pem' if self.platform=='darwin' and Path('/etc/ssl/cert.pem').is_file() else None
+            candidates=['/etc/ssl/cert.pem'] if self.platform=='darwin' else ['/etc/ssl/certs/ca-certificates.crt','/etc/ssl/cert.pem'] if self.platform=='linux' else []
+            ca=next((path for path in candidates if Path(path).is_file()),None)
             context=ssl.create_default_context(cafile=ca)
             try:
                 with urllib.request.urlopen(OFFICIAL_URL,timeout=20,context=context) as response:updater=response.read(3307521)
@@ -111,10 +123,17 @@ class Firmware:
             if not self.available() or self.busy:raise ValueError('Firmware installation is unavailable or busy.')
             self.plan=None
             images=self.images();loader=self.loader()
-            if not images or not loader or loader['device_id']!=body['device_id'] or loader['device_id'] in self.spent:raise ValueError('Prepare the updater and reconnect in D-on-connect mode. A fresh bootloader connection is required.')
+            if not images or not loader or loader.get('requires_reconnect') or loader['device_id']!=body['device_id'] or loader['device_id'] in self.spent:raise ValueError('Prepare the updater and reconnect in D-on-connect mode. A fresh bootloader connection is required.')
             if not self.hardware.lock.acquire(False):raise ValueError('A keyboard command is already running.')
             try:
-                events=self.invoke(['--inspect',loader['device_id'],str(loader['location'])]);audit(events,images['candidate'],True)
+                if self.platform!='darwin' and self.runner is None:
+                    from firmware_ipc import SessionProcess
+                    if self.worker:self.worker.close();self.worker=None
+                    self.worker=SessionProcess(loader['transport_id'])
+                    try:events=self.worker.inspect();audit(events,images['candidate'],True)
+                    except Exception:self.worker.close();self.worker=None;raise
+                else:
+                    events=self.invoke(['--inspect',loader['device_id'],str(loader['location'])]);audit(events,images['candidate'],True)
             finally:self.hardware.lock.release()
             self.plan={'nonce':secrets.token_urlsafe(24),'loader':loader,'expires':time.monotonic()+120}
             return {'ok':True,'plan_nonce':self.plan['nonce'],'device_id':loader['device_id'],'mcu':'M032SE3AE','configuration_verified':True,'expires_in':120,'message':'Chip and configuration match. No erase or programming command was sent.'}
@@ -124,15 +143,17 @@ class Firmware:
         with self.lock:
             plan=self.plan;images=self.images();loader=self.loader()
             if not self.available() or self.busy or not plan or not images or plan['expires']<time.monotonic() or not secrets.compare_digest(str(body['plan_nonce']),plan['nonce']) or loader!=plan['loader'] or body['device_id']!=loader['device_id'] or loader['device_id'] in self.spent:raise ValueError('The firmware check expired or the connection changed. Run the bootloader check again.')
+            if self.platform!='darwin' and self.runner is None and (not self.worker or self.worker.process.poll() is not None):raise ValueError('The checked bootloader session expired. Check it again.')
             if not self.hardware.lock.acquire(False):raise ValueError('A keyboard command is already running.')
             self.spent.add(loader['device_id']);self.plan=None;self.busy=True
-            self.job={'id':secrets.token_hex(8),'state':'programming','image':body['image'],'loader_device_id':loader['device_id'],'submitted':0,'total_reports':1164 if body['image']=='candidate' else 1144,'message':'Keep the cable connected. Closing this tab does not stop the companion.'}
+            self.job={'id':secrets.token_hex(8),'state':'programming','image':body['image'],'loader_device_id':loader['device_id'],'loader_transport_id':loader.get('transport_id'),'submitted':0,'total_reports':1164 if body['image']=='candidate' else 1144,'message':'Keep the cable connected. Closing this tab does not stop the companion.'}
 
             try:
                 self.directory.mkdir(parents=True,exist_ok=True)
                 with (self.directory/('attempt-'+self.job['id']+'.json')).open('x') as log:json.dump({'job':self.job,'events':[]},log)
             except OSError:
                 self.busy=False;self.spent.discard(loader['device_id']);self.job.update(state='failed',message='Cannot save the firmware attempt log. No programming command was sent.');self.hardware.lock.release();raise ValueError(self.job['message'])
+            if loader.get('transport_id'):self.discovery.blocked.add(loader['transport_id'])
             thread=threading.Thread(target=self._program,args=(dict(self.job),loader,images[body['image']]),daemon=False);thread.start()
             return {'ok':True,'job':dict(self.job)}
     def _program(self,job,loader,image):
@@ -141,6 +162,12 @@ class Firmware:
             args=['--program-'+job['image'],loader['device_id'],str(loader['location']),str(self.directory/(job['image']+'.bin'))]
             # Runner is injected only by tests. Production always uses the native executable.
             if self.runner:events=self.runner(args);code=0
+            elif self.platform!='darwin':
+                for event in self.worker.program(job['image'],self.directory/(job['image']+'.bin')):
+                    events.append(event)
+                    if event.get('event')=='submitting':
+                        with self.lock:self.job['submitted']+=1
+                code=0
             else:
                 process=subprocess.Popen([str(NATIVE),*args],stdout=subprocess.PIPE,stderr=subprocess.PIPE,text=True)
                 for line in process.stdout:
@@ -154,6 +181,8 @@ class Firmware:
         except Exception as error:
             with self.lock:self.job.update(state='failed',message=str(error)+' Recovery is not guaranteed. Do not retry automatically. If D-on-connect still works, a fresh check can prepare manufacturer V1.10 restoration; otherwise hardware repair may be needed.')
         finally:
+            if self.worker:
+                self.worker.close();self.worker=None
             if process is not None and process.poll() is None:process.terminate();process.wait(timeout=5)
             try:
                 self.directory.mkdir(parents=True,exist_ok=True);(self.directory/('attempt-'+job['id']+'.json')).write_text(json.dumps({'job':self.job,'events':events},indent=2)+'\n')
