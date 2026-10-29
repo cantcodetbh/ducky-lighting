@@ -68,6 +68,14 @@ class Safety(unittest.TestCase):
         restarted=Firmware(self.hw,self.tmp.name,self.runner,'darwin');self.assertIn('123',restarted.spent)
         path=next(Path(self.tmp.name).glob('attempt-*.json'));data=json.loads(path.read_text());data['job']['state']='programming';path.write_text(json.dumps(data))
         interrupted=Firmware(self.hw,self.tmp.name,self.runner,'darwin');self.assertEqual(interrupted.job['state'],'failed');self.assertIn('unknown',interrupted.job['message'])
+    def test_official_download_uses_only_pinned_https_url_and_rejects_untrusted_bytes(self):
+        from unittest.mock import patch
+        import io
+        with patch('urllib.request.urlopen',return_value=io.BytesIO(b'not firmware')) as network:
+            with self.assertRaises(ValueError):self.fw.prepare({'download_official':True})
+            self.assertIn('cdn.shopify.com',network.call_args.args[0]);self.assertIn('context',network.call_args.kwargs)
+        with self.assertRaises(ValueError):self.fw.prepare({'download_official':True,'url':'https://evil.invalid'})
+        self.assertEqual(self.runner.calls,[])
     def test_no_generic_commands_via_native_cli(self):
         if not NATIVE.exists():self.skipTest('Native macOS helper is not built')
         for args in (['--command','0xa3'],['--program-candidate','123','1048576',str(ROOT/'package.json')],['--inspect','-1','1048576']):

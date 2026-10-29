@@ -87,9 +87,12 @@ class Firmware:
               'platform_detail':'Firmware installation is available only through the macOS companion. Windows/Linux RGB transports are experimental; firmware programming is not enabled on those operating systems.'}
     def prepare(self,body):
         if body=={'download_official':True}:
-            import urllib.request
+            import urllib.request,ssl
+            # Frozen Python must not depend on a developer's Homebrew certificate path.
+            ca='/etc/ssl/cert.pem' if self.platform=='darwin' and Path('/etc/ssl/cert.pem').is_file() else None
+            context=ssl.create_default_context(cafile=ca)
             try:
-                with urllib.request.urlopen(OFFICIAL_URL,timeout=20) as response:updater=response.read(3307521)
+                with urllib.request.urlopen(OFFICIAL_URL,timeout=20,context=context) as response:updater=response.read(3307521)
             except OSError:raise ValueError('The official download could not be reached. Choose your local V1.10 updater instead.')
         elif set(body)=={'updater_base64'} and isinstance(body['updater_base64'],str) and len(body['updater_base64'])<=4500000:
             updater=base64.b64decode(body['updater_base64'],validate=True)
