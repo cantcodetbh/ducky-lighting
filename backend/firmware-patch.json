@@ -1,0 +1,88 @@
+{
+  "stock_payload_sha256": "fb29585b17a0ee1883287def35a1b107695a13c4dc85355cb27f54921ea5f514",
+  "edits": [
+    {
+      "address": "0xdc3a",
+      "before": "00f0c0fc",
+      "after": "01f0ebfe",
+      "original_target": "0xe5be",
+      "hook": "ducky_open_hook",
+      "hook_target": "0xfa14"
+    },
+    {
+      "address": "0xdc86",
+      "before": "f8f7a7f9",
+      "after": "02f005f8",
+      "original_target": "0x5fd8",
+      "hook": "ducky_lighting_hook",
+      "hook_target": "0xfc94"
+    },
+    {
+      "address": "0xdd36",
+      "before": "f8f74ff9",
+      "after": "01f0adff",
+      "original_target": "0x5fd8",
+      "hook": "ducky_lighting_hook",
+      "hook_target": "0xfc94"
+    },
+    {
+      "address": "0xee8c",
+      "before": "fff7cafb",
+      "after": "00f0a2fe",
+      "original_target": "0xe624",
+      "hook": "ducky_setup_hook",
+      "hook_target": "0xfbd4"
+    },
+    {
+      "address": "0xeeb0",
+      "before": "fff7f8fe",
+      "after": "00f0a6fe",
+      "original_target": "0xeca4",
+      "hook": "ducky_out_hook",
+      "hook_target": "0xfc00"
+    },
+    {
+      "address": "0xee26",
+      "before": "fff767ff",
+      "after": "00f079ff",
+      "original_target": "0xecf8",
+      "hook": "ducky_reset_hook",
+      "hook_target": "0xfd1c"
+    },
+    {
+      "address": "0xf4dc",
+      "before": "c01e0000",
+      "after": "c0210000",
+      "kind": "BSS length: original static end 0x20002478 -> 0x20002778",
+      "new_context_extent": "0x20002500..0x20002777"
+    }
+  ],
+  "segments": [
+    {
+      "address": 63856,
+      "hex": "70b503460020082a05d10a78d12a02d1ca79002a00d070bd4a78032a2ad0022a0ed0012af7d18a78042af4d8cc780d2cf1d80e205043221803205043c21c07e08a78002ae7d1ca780020002ae3d1d22244001c19ff25023590421cd20e796e4326804e796e4366808e796e43a680a41dc01cf1e78a78002acdd1ca78002acad10a79002ac7d14a79002ac4d1897900200029c0d100e00120692189005854012070bdd4d4f8b501464f20c000254b002804d000241c705b1c401ef8e7002322481c2b03d0cc58c4501b1df9e70023102b08d0cc68e458c518ec614c69e458ec621b1df4e700236d2b06d04c68e45cc5183c26ac555b1cf6e70024144b122c06d00d682d5d1e195427f555641cf6e75521197000245c700e4c02252570902565700c4cc461c1625433036001463c31416001461c31c16001462c3141610649074b9847f8bd00250020b82600200d2700206d27002064fd0000d1fa0000bfe50000b0b5394b9878dc7821020a1818795979090209189879dd792d0228185d78092d1dd11c78212c0bd103242402a24207d1002905d1082803d12f4c6578002d45d01b78212b39d101235b029a4235d1002933d1012831d12848022101702ae05d78012d27d1032c25d11b78a12b25d103231b029a4221d100291fd108281dd11d48442181725221c1724721017342214173012181730178c17317498a780274497841740a300821154a90470020144a01469047b0bd0d488047b0bd0d480168022211430160016911430161b0bd012020700848801c08210a4a90470548c16880220a43c260b0bdc04674230020d9ef00000c050c40a42600207327002019eb00007fec000080b506480021017005480170054801608160c1600448804780bdc0467327002070240020dc23002025e60000b0b51c490b781c488468002b08d000220a704568082d0ed1012b04d0012503e0002c05d00be00825ac4204d1022b0ed117488047b0bd11490a7011494a600168022211430160016911430161b0bd0d480d4b082a03d0145cd454521cf9e70120487007490820086000204860074a01469047b0bd732700200c050c4070240020e423002008010c40a626002019eb0000a5ec0000f8b5eff3108472b6194f3878194d1a4e002813d02846b230b11c0822fff75efe7870002038707878002807d03078002804d1ff20287011480121017031781048002911d0b235d2210e4a002905d02b881380921cad1c491ef7e7084900220a70804784f31088f8bd84f310888047f8bd742700204e240020a4260020b80d0020d95f00000016002010b50c4900200870487088700a4908700a4c2146b231d222002a03d00880891c521ef9e706488047ff20207005480121017010bd73270020a42600204e240020f9ec0000b80d002005010906a101050719e029e71500250175019508810295017508810395037501050819012903910295017505910395067508150026a4000507190029a48100c00600ff0901a101150026ff00750895080902b102c000000078020000a6010000ae010000730200007402000075020000a401000098fbff7f0100000084ffff7f01000000"
+    }
+  ],
+  "symbols": {
+    "keyboard_report": "0xfd64",
+    "ducky_rgb_command": "0xf971",
+    "ducky_open_hook": "0xfa15",
+    "ducky_class_hook": "0xfad1",
+    "ducky_setup_hook": "0xfbd5",
+    "ducky_out_hook": "0xfc01",
+    "ducky_lighting_hook": "0xfc95",
+    "ducky_reset_hook": "0xfd1d",
+    "ducky_context_layout": "0xfdbc"
+  },
+  "source_sha256": {
+    "firmware/host-rgb/analysis.ld": "bdc0db3d9913f5dfd8dceb5a02dc288dbd663cfc94ce07dcf65c9639bb5d1ddb",
+    "firmware/host-rgb/host_rgb.c": "af54264553e88e0cd3bc040428956551711c1f7c9fdcf0f9f3be8b9a3abf8d26",
+    "firmware/host-rgb/host_rgb.h": "ee2b87e31fa0e88b25053b28a5092f171e84a8b3b8fe5685c3eb1eb4555868cb",
+    "firmware/host-rgb/keyboard_report.inc": "54ef8bf8529387cb06be163cfb067d54f0402aeaff2ca60b43b6f22f42c3c395",
+    "firmware/host-rgb/usb_integration.c": "582c9e895c7db7e99a7626fe90af3f57b045b1c202ea70f1185e1f52652ba816"
+  },
+  "candidate_sha256": "d85ee17eeaf68e14d8634ab5d0a59f2ae551ea9aa3c6ded9451ba3fed13458fc",
+  "candidate_length": 65000,
+  "research_commit": "d2d38dc",
+  "scope": "Fixed custom9002 patch; stock updater bytes must be supplied locally. Only this resulting image hash is accepted."
+}

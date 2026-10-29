@@ -1,0 +1,6 @@
+{
+  "reference_commit": "2470780ddff7869540397356d7804acd845235e1",
+  "original_path": "SampleCode/ISP/ISP_HID/isp_user.c",
+  "original_sha256": "2e03aa5a16e16808b3bcfa35a86855d46740d4c87007032cb8878592b298e509",
+  "adaptation": "Only two include directives changed. Executable ParseCmd C retained; peripherals and flash are RAM arrays. Test images are synthetic, not firmware."
+}

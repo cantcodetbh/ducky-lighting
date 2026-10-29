@@ -1,0 +1,3 @@
+Instrument Sans variable font, Google Fonts. Self-hosted; no runtime external request.
+https://raw.githubusercontent.com/google/fonts/main/ofl/instrumentsans/InstrumentSans%5Bwdth%2Cwght%5D.ttf
+License: Instrument-Sans-OFL.txt

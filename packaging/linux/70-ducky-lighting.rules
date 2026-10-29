@@ -1,0 +1,2 @@
+# Only the normal Ducky HID device, not the generic Nuvoton loader.
+SUBSYSTEM=="hidraw", ATTRS{idVendor}=="3233", ATTRS{idProduct}=="6301", TAG+="uaccess"

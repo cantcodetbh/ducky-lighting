@@ -1,0 +1,21 @@
+{
+  "name": "ducky-lighting",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "vite --host 127.0.0.1",
+    "build": "tsc --noEmit && vite build",
+    "start": "python3 backend/server.py",
+    "test": "tsx --test tests/state.test.ts && python3 -m unittest discover -s tests -p 'test_*.py'",
+    "test:browser": "node tests/browser.mjs",
+    "test:theme": "node tests/theme.mjs"
+  },
+  "devDependencies": {
+    "@playwright/test": "^1.58.0",
+    "prettier": "^3.9.10",
+    "tsx": "^4.21.0",
+    "typescript": "^5.9.0",
+    "vite": "^7.3.0"
+  }
+}

@@ -1,0 +1,38 @@
+name: Build preview installers (no publication)
+on:
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  build:
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [macos-15, macos-15-intel, windows-2022, ubuntu-22.04]
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: npm
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - run: npm ci
+      - run: python -m pip install -r packaging/requirements.txt
+      - name: Linux build dependencies
+        if: runner.os == 'Linux'
+        run: sudo apt-get update && sudo apt-get install -y libudev-dev libusb-1.0-0-dev
+      - name: Windows installer tool
+        if: runner.os == 'Windows'
+        run: choco install nsis --no-progress -y
+      - run: npm test
+      - run: python scripts/test_firmware.py
+      - run: python scripts/build_installers.py
+      - run: python scripts/verify_installers.py
+      - uses: actions/upload-artifact@v4
+        with:
+          name: ducky-lighting-${{ matrix.os }}-preview
+          path: release/*
+          if-no-files-found: error

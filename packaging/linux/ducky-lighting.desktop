@@ -1,0 +1,9 @@
+[Desktop Entry]
+Name=Ducky Lighting
+Comment=Local keyboard RGB editor and companion
+Exec=/opt/ducky-lighting/DuckyLighting %u
+Icon=ducky-lighting
+Terminal=false
+Type=Application
+Categories=Utility;
+MimeType=x-scheme-handler/ducky-lighting;
