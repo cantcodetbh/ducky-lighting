@@ -25,6 +25,12 @@ class Portable(unittest.TestCase):
         result=self.transport.command('pixels',[(4,5,[102,156,53]),(4,3,[102,156,53])],self.identity)
         self.assertTrue(result['ok']);self.assertEqual(result['accepted_count'],2)
         self.assertEqual(self.lib.writes,[bytes.fromhex('00d1010405669c3500'),bytes.fromhex('00d1010403669c3500')])
+    def test_windows_vendor_collection_descriptor_and_wrong_feature_size(self):
+        self.lib.descriptor=DESC[64:];self.assertTrue(self.transport.command('release',None,self.identity)['ok'])
+        self.lib.writes.clear();self.lib.descriptor=DESC[64:].replace(b'\x95\x08',b'\x95\x09')
+        self.assertFalse(self.transport.command('release',None,self.identity)['ok']);self.assertEqual(self.lib.writes,[])
+        self.lib.descriptor=DESC[64:];self.lib.entries[0]['usage_page']=1;self.lib.entries[0]['usage']=6
+        self.assertFalse(self.transport.command('release',None,self.identity)['ok']);self.assertEqual(self.lib.writes,[])
     def test_stock_and_wrong_descriptor_and_bad_handshake_write_nothing(self):
         self.lib.entries[0]['release_number']=0;self.assertFalse(self.transport.command('release',None,self.identity)['ok']);self.assertEqual(self.lib.opens,0)
         self.lib.entries[0]['release_number']=0x9002;self.lib.descriptor=b'wrong';self.assertFalse(self.transport.command('release',None,self.identity)['ok']);self.assertEqual(self.lib.gets,0)

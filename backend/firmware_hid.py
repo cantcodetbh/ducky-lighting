@@ -17,11 +17,10 @@ def selected(module):
     if (d.get('vendor_id'),d.get('product_id'),d.get('usage_page'),d.get('usage'))!=(VID,PID,0xff00,1) or d.get('bus_type',1) not in (0,1):return None
     return d
 
-def descriptor_valid(raw):
+def _vendor_reports(raw,expected):
     # Windows reconstructs descriptors. Permit equivalent encodings, not arbitrary HID layouts.
-    if raw==DESCRIPTOR:return True
     if not raw or len(raw)>4096:return False
-    g={};local={};depth=0;counts={8:0,9:0};i=0;opened=False;closed=False
+    g={};local={};depth=0;counts={kind:0 for kind in expected};i=0;opened=False;closed=False
     try:
         while i<len(raw):
             prefix=raw[i];i+=1
@@ -48,13 +47,20 @@ def descriptor_valid(raw):
                     if depth!=1 or size:return False
                     depth=0;closed=True
                 elif tag in counts:
-                    if depth!=1 or g.get(0)!=0xff00 or g.get(1)!=0 or g.get(2)!=255 or g.get(7)!=8 or g.get(9)!=64 or value not in (0,2):return False
+                    if depth!=1 or g.get(0)!=0xff00 or g.get(1)!=0 or g.get(2)!=255 or g.get(7)!=8 or g.get(9)!=expected[tag] or value not in (0,2):return False
                     counts[tag]+=1
                 else:return False  # no Feature, padding or extra report families
                 local={}
             else:return False
-        return opened and closed and depth==0 and counts=={8:1,9:1}
+        return opened and closed and depth==0 and counts=={kind:1 for kind in expected}
     except (ValueError,TypeError):return False
+
+def descriptor_valid(raw):
+    return raw==DESCRIPTOR or _vendor_reports(raw,{8:64,9:64})
+
+def feature_descriptor_valid(raw):
+    # Windows exposes the vendor top-level collection separately from the keyboard collection.
+    return _vendor_reports(raw,{11:8})
 
 class Discovery:
     def __init__(self,blocked=(),module=None):self.module=module;self.blocked=set(blocked);self.path=None;self.epoch=None

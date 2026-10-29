@@ -44,7 +44,10 @@ class PortableHID:
             ops=self.operations(action,payload);chosen=self.selected()
             if not chosen or self.identity(chosen)!=device_id:raise TransportError('Keyboard disconnected or changed. Refresh the connection.')
             device=self.library().device();device.open_path(chosen['path'])
-            if bytes(device.get_report_descriptor())!=DESC:raise TransportError('Report descriptor differs from the tested keyboard. No colour sent.')
+            from firmware_hid import feature_descriptor_valid
+            descriptor=bytes(device.get_report_descriptor())
+            vendor_collection=(chosen.get('usage_page'),chosen.get('usage'))==(0xff00,1)
+            if descriptor!=DESC and not (vendor_collection and feature_descriptor_valid(descriptor)):raise TransportError('Report descriptor differs from the tested keyboard. No colour sent.')
             def still_same():
                 current=self.selected()
                 if not current or current['path']!=chosen['path'] or self.identity(current)!=device_id:raise TransportError('Keyboard changed during the command. No retry sent.')
