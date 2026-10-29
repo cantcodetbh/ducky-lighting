@@ -16,6 +16,7 @@ arch=platform.machine().lower();arch='arm64' if arch in ('arm64','aarch64') else
 worker=STAGE/('companion' if sys.platform=='darwin' else 'DuckyLighting')/('DuckyFirmwareWorker.exe' if sys.platform=='win32' else 'DuckyFirmwareWorker')
 worker_result=json.loads(subprocess.check_output([str(worker),'--self-test'],text=True))
 assert worker_result['ok'] and worker_result['actual_USB_calls']==0
+assert worker_result['hid_backend']==('hidraw' if sys.platform.startswith('linux') else 'hid')
 (OUT/'portable-firmware-worker.json').write_text(json.dumps(worker_result,indent=2)+'\n')
 if sys.platform=='darwin':
     app=STAGE/'Ducky Lighting.app';contents=app/'Contents';(contents/'MacOS').mkdir(parents=True,exist_ok=True);(contents/'Resources').mkdir(exist_ok=True)

@@ -69,7 +69,7 @@ class Firmware:
         if self.platform=='darwin':return NATIVE.is_file()
         import importlib.util
         from firmware_ipc import worker_command
-        return importlib.util.find_spec('hid') is not None and Path(worker_command()[-1]).is_file()
+        return importlib.util.find_spec('hidraw' if self.platform=='linux' else 'hid') is not None and Path(worker_command()[-1]).is_file()
     def invoke(self,args):
         if self.runner:return self.runner(args)
         p=subprocess.run([str(NATIVE),*args],capture_output=True,text=True,timeout=15)

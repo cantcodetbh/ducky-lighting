@@ -11,6 +11,7 @@ def verify_worker(directory):
     worker=directory/('DuckyFirmwareWorker.exe' if sys.platform=='win32' else 'DuckyFirmwareWorker')
     data=json.loads(subprocess.check_output([str(worker),'--self-test'],text=True))
     assert data['ok'] and data['actual_USB_calls']==0
+    assert data['hid_backend']==('hidraw' if sys.platform.startswith('linux') else 'hid')
     result['installed_firmware_worker_verified']=True
 if sys.platform=='darwin':
     image=next((ROOT/'release').glob('*.dmg'))

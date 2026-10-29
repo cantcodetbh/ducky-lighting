@@ -14,8 +14,9 @@ def read():
 
 def self_test():
     from firmware_virtual import verify
-    import hid  # Load the bundled native library; do not enumerate or open devices.
-    result=verify();result['hid_library_imported']=True
+    from firmware_hid import library
+    module=library()  # Load the bundled library without enumeration/open/reports.
+    result=verify();result['hid_library_imported']=True;result['hid_backend']=module.__name__
     send(result);return 0
 
 def main():

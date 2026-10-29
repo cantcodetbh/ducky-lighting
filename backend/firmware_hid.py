@@ -2,14 +2,14 @@
 HIDAPI write: zero report-ID + 64 bytes. Read: exactly 64 unnumbered bytes.
 https://libusb.info/hidapi/group__API.html
 """
-import hashlib,importlib,json,secrets,time
+import hashlib,importlib,json,secrets,time,sys
 from pathlib import Path
 VID,PID=0x0416,0x3f00
 DESCRIPTOR=bytes.fromhex('0600ff0901a10119012940150026ff00750895408100190129409100c0')
 class LoaderError(ValueError):pass
 
 def identity(info):return str(int.from_bytes(hashlib.sha256(bytes(info['path'])).digest()[:8],'big'))
-def library():return importlib.import_module('hid')
+def library():return importlib.import_module('hidraw' if sys.platform.startswith('linux') else 'hid')
 def selected(module):
     all_devices=module.enumerate(VID,PID)
     if len(all_devices)!=1:return None

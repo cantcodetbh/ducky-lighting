@@ -7,7 +7,9 @@ class PortableHID:
     def __init__(self,module=None):self.module=module;self.last=None
     def library(self):
         if self.module is None:
-            try:import hid;self.module=hid
+            try:
+                from firmware_hid import library
+                self.module=library()
             except ImportError:raise TransportError('The HID adapter is not installed. Use the packaged companion.')
         return self.module
     def enumerate(self):
