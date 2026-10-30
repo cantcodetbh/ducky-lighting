@@ -81,3 +81,14 @@ export async function firmwareFlash(planNonce:string,deviceId:string,image:strin
 }
 
 export async function firmwareDownload() { return api("firmware/prepare", {download_official:true}); }
+
+export async function saveOnboard(layout:string,colours:Record<string,string>,deviceId:string) {
+  return api("onboard/save",{layout,colours,device_id:deviceId,consent:true});
+}
+export async function clearOnboard(deviceId:string) {
+  return api("onboard/clear",{device_id:deviceId,consent:true});
+}
+
+export async function applyEffect(effect:string,speed:number,colour:string,deviceId:string) {
+  return api("effect",{effect,speed,colour,device_id:deviceId,consent:true});
+}

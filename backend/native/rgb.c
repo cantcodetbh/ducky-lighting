@@ -1,4 +1,4 @@
-/* Typed RGB operations for custom firmware9002 only. No firmware/loader API.
+/* Typed RGB operations for custom firmware9002/9003. No firmware/loader API.
  * --status uses cached properties, --probe is a read-only Feature handshake.
  */
 #include <CoreFoundation/CoreFoundation.h>
@@ -13,7 +13,7 @@
 #include <errno.h>
 #include "rgb_descriptor.h"
 struct operation {uint8_t body[8];};
-struct request {struct operation ops[70];unsigned count;int cached,probe;uint64_t expected_device;};
+struct request {struct operation ops[71];unsigned count;int cached,probe,persistent,native_effect;uint64_t expected_device;};
 static struct {uint8_t report[8];CFIndex length;IOReturn error;unsigned accepted,submitted,get_calls;int last_was_set,initial_active,initial_status_valid;double deadline;} io;
 static double now(void) {struct timespec t;if(clock_gettime(CLOCK_MONOTONIC,&t))return -1;return(double)t.tv_sec+(double)t.tv_nsec/1e9;}
 static int decimal(const char *text,unsigned maximum,unsigned *out) {
@@ -27,6 +27,13 @@ static int parse_request_inner(int argc,char **argv,struct request *r) {
     if(argc==2 && !strcmp(argv[1],"--status")){r->cached=1;return 1;}
     if(argc==2 && !strcmp(argv[1],"--probe")){r->probe=1;return 1;}
     if(argc==2 && !strcmp(argv[1],"--release")){r->ops[0].body[0]=0xd1;r->ops[0].body[1]=3;r->count=1;return 1;}
+    if(argc==7 && !strcmp(argv[1],"--effect")) {
+        unsigned v[5];for(unsigned i=0;i<5;++i)if(!decimal(argv[i+2],i==0?8:i==1?10:255,&v[i]))return 0;
+        if((v[0]!=1 && v[0]!=4 && v[0]!=6 && v[0]!=8) || v[1]<1)return 0;
+        r->ops[0].body[0]=0xd1;r->ops[0].body[1]=6;for(unsigned i=0;i<5;++i)r->ops[0].body[2+i]=(uint8_t)v[i];
+        r->count=1;r->native_effect=1;return 1;
+    }
+    if(argc==2 && !strcmp(argv[1],"--clear-onboard")){r->ops[0].body[0]=0xd1;r->ops[0].body[1]=5;r->count=1;r->persistent=1;return 1;}
     if(argc==7 && !strcmp(argv[1],"--pixel")) {
         unsigned values[5];for(unsigned i=0;i<5;++i)if(!decimal(argv[i+2],i==0?4:i==1?13:255,&values[i]))return 0;
         r->ops[0].body[0]=0xd1;r->ops[0].body[1]=1;
@@ -37,7 +44,7 @@ static int parse_request_inner(int argc,char **argv,struct request *r) {
         r->ops[0].body[0]=0xd1;r->ops[0].body[1]=2;
         for(unsigned i=0;i<3;++i)r->ops[0].body[i+4]=(uint8_t)values[i];r->count=1;return 1;
     }
-    if(argc==3 && !strcmp(argv[1],"--batch")) {
+    if(argc==3 && (!strcmp(argv[1],"--batch") || !strcmp(argv[1],"--save-batch"))) {
         size_t n=strlen(argv[2]);if(!n || n>700 || n%10)return 0;
         uint8_t seen[70]={0};r->count=(unsigned)n/10;
         for(unsigned i=0;i<r->count;++i) {
@@ -45,6 +52,10 @@ static int parse_request_inner(int argc,char **argv,struct request *r) {
             for(unsigned j=0;j<5;++j) {int hi=hex_digit(argv[2][i*10+j*2]),lo=hex_digit(argv[2][i*10+j*2+1]);if(hi<0||lo<0)return 0;values[j]=(uint8_t)(hi*16+lo);}
             if(values[0]>=5 || values[1]>=14 || seen[values[0]*14+values[1]]++)return 0;
             r->ops[i].body[0]=0xd1;r->ops[i].body[1]=1;memcpy(r->ops[i].body+2,values,5);
+        }
+        if(!strcmp(argv[1],"--save-batch")) {
+            if(r->count!=70)return 0;
+            r->persistent=1;r->ops[r->count].body[0]=0xd1;r->ops[r->count].body[1]=4;++r->count;
         }
         return 1;
     }
@@ -67,13 +78,13 @@ static int number_is(IOHIDDeviceRef d,CFStringRef key,int wanted) {
 static int compatible(IOHIDDeviceRef d) {
     CFTypeRef p=IOHIDDeviceGetProperty(d,CFSTR(kIOHIDReportDescriptorKey));
     return number_is(d,CFSTR(kIOHIDVendorIDKey),0x3233) && number_is(d,CFSTR(kIOHIDProductIDKey),0x6301)
-        && number_is(d,CFSTR(kIOHIDVersionNumberKey),0x9002) && number_is(d,CFSTR(kIOHIDMaxFeatureReportSizeKey),8)
+        && (number_is(d,CFSTR(kIOHIDVersionNumberKey),0x9002)||number_is(d,CFSTR(kIOHIDVersionNumberKey),0x9003)||number_is(d,CFSTR(kIOHIDVersionNumberKey),0x9004)) && number_is(d,CFSTR(kIOHIDMaxFeatureReportSizeKey),8)
         && ((number_is(d,CFSTR(kIOHIDPrimaryUsagePageKey),0xff00)&&number_is(d,CFSTR(kIOHIDPrimaryUsageKey),1))
          || (number_is(d,CFSTR(kIOHIDPrimaryUsagePageKey),1)&&number_is(d,CFSTR(kIOHIDPrimaryUsageKey),6)))
         && p && CFGetTypeID(p)==CFDataGetTypeID() && CFDataGetLength((CFDataRef)p)==sizeof(rgb_descriptor)
         && !memcmp(CFDataGetBytePtr((CFDataRef)p),rgb_descriptor,sizeof(rgb_descriptor));
 }
-static int status_valid(const uint8_t b[8]) {return !memcmp(b,"DRGB",4)&&b[4]==1&&b[5]<=1&&b[6]<=1&&b[7]<=1;}
+static int status_valid(const uint8_t b[8]) {return !memcmp(b,"DRGB",4)&&(b[4]==1||b[4]==2)&&b[5]<=1&&b[6]<=1&&b[7]<=(b[4]==2?3:1);}
 static int exchange(IOHIDDeviceRef d,const uint8_t *body) {
     if(!compatible(d) || now()<0 || now()>=io.deadline){io.error=kIOReturnTimeout;return 0;}
     /* Allow the prior control status/IRQ to retire before the next SETUP. */
@@ -98,7 +109,9 @@ static int read_status(IOHIDDeviceRef d,unsigned attempts) {
     return 0;
 }
 static int execute(IOHIDDeviceRef d,const struct request *r) {
-    if(!read_status(d,3)||io.report[7])return 0;
+    if(r->persistent && !(number_is(d,CFSTR(kIOHIDVersionNumberKey),0x9003)||number_is(d,CFSTR(kIOHIDVersionNumberKey),0x9004)))return 0;
+    if(r->native_effect && !number_is(d,CFSTR(kIOHIDVersionNumberKey),0x9004))return 0;
+    if(!read_status(d,3)||(io.report[7]&1)||((r->persistent||r->native_effect) && io.report[4]!=2))return 0;
     io.initial_active=io.report[5];io.initial_status_valid=1;if(r->probe)return 1;
     for(unsigned n=0;n<r->count;++n) {
         if(!exchange(d,r->ops[n].body))return 0;
@@ -109,8 +122,11 @@ static int execute(IOHIDDeviceRef d,const struct request *r) {
     }
     for(unsigned poll=0;poll<3;++poll) {
         if(!read_status(d,1)) {if(io.error==kIOReturnNoDevice)return 0;continue;}
-        if(!io.report[7]) {
-            int accepted=io.report[6]==1 && io.report[5]==(r->ops[r->count-1].body[1]==3?0:1);
+        if(!(io.report[7]&1)) {
+            unsigned op=r->ops[r->count-1].body[1];
+            int accepted=io.report[6]==1 && io.report[5]==((op==3||op==5)?0:1);
+            if(op==4)accepted=accepted && io.report[4]==2 && (io.report[7]&2);
+            if(op==5)accepted=accepted && io.report[4]==2 && !(io.report[7]&2);
             if(accepted)++io.accepted;return accepted;
         }
     }
@@ -139,7 +155,9 @@ int main(int argc,char **argv) {
     uint64_t entry=0;if(count==1)IORegistryEntryGetRegistryEntryID(IOHIDDeviceGetService(chosen),&entry);
     if(r.expected_device && entry!=r.expected_device){chosen=NULL;count=0;}
     if(r.cached) {
-        printf("{\"ok\":true,\"connected\":%s,\"matching_interfaces\":%d,\"rgb_control\":true,\"device_id\":\"%llu\",\"firmware\":\"9002\"}\n",count==1?"true":"false",count,(unsigned long long)entry);
+        int effects=count==1 && number_is(chosen,CFSTR(kIOHIDVersionNumberKey),0x9004);
+        int onboard=effects || (count==1 && number_is(chosen,CFSTR(kIOHIDVersionNumberKey),0x9003));
+        printf("{\"ok\":true,\"connected\":%s,\"matching_interfaces\":%d,\"rgb_control\":true,\"onboard_profiles\":%s,\"effects\":%s,\"device_id\":\"%llu\",\"firmware\":\"%s\"}\n",count==1?"true":"false",count,onboard?"true":"false",effects?"true":"false",(unsigned long long)entry,effects?"9004":onboard?"9003":"9002");
         if(devices)CFRelease(devices);CFRelease(manager);return 0;
     }
     double start=now();int ok=0;io.deadline=start+8;
@@ -149,6 +167,6 @@ int main(int argc,char **argv) {
     }
     if(devices)CFRelease(devices);CFRelease(manager);
     if(!ok){fprintf(stderr,"RGB debug: length=%ld body=",(long)io.length);for(unsigned i=0;i<8;++i)fprintf(stderr,"%02x",io.report[i]);fputc('\n',stderr);}
-    printf("{\"ok\":%s,\"submitted\":%s,\"accepted_count\":%u,\"submitted_count\":%u,\"previous_rgb_active\":%s,\"get_count\":%u,\"last_transfer\":\"%s\",\"rgb_active\":%s,\"pending\":%s,\"device_id\":\"%llu\",\"elapsed_ms\":%.1f,\"ioreturn\":\"0x%08x\",\"error\":%s}\n",ok?"true":"false",io.submitted?"true":"false",io.accepted,io.submitted,io.initial_status_valid?(io.initial_active?"true":"false"):"null",io.get_calls,io.last_was_set?"set":"get",status_valid(io.report)?(io.report[5]?"true":"false"):"null",status_valid(io.report)?(io.report[7]?"true":"false"):"null",(unsigned long long)entry,(now()-start)*1000,(unsigned)io.error,ok?"null":"\"RGB transaction failed; colour writes were not retried\"");
+    printf("{\"ok\":%s,\"submitted\":%s,\"accepted_count\":%u,\"submitted_count\":%u,\"previous_rgb_active\":%s,\"get_count\":%u,\"last_transfer\":\"%s\",\"rgb_active\":%s,\"pending\":%s,\"onboard_saved\":%s,\"device_id\":\"%llu\",\"elapsed_ms\":%.1f,\"ioreturn\":\"0x%08x\",\"error\":%s}\n",ok?"true":"false",io.submitted?"true":"false",io.accepted,io.submitted,io.initial_status_valid?(io.initial_active?"true":"false"):"null",io.get_calls,io.last_was_set?"set":"get",status_valid(io.report)?(io.report[5]?"true":"false"):"null",status_valid(io.report)?((io.report[7]&1)?"true":"false"):"null",status_valid(io.report)&&io.report[4]==2?((io.report[7]&2)?"true":"false"):"null",(unsigned long long)entry,(now()-start)*1000,(unsigned)io.error,ok?"null":"\"RGB transaction failed; colour writes were not retried\"");
     return ok?0:1;
 }

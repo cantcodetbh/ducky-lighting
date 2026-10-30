@@ -5,8 +5,8 @@
 #include <stddef.h>
 #include <string.h>
 /* Buffers are BSS, populated only from a SHA-256-pinned local image. No stock image is embedded. */
-static uint8_t candidate_image[65000],restore_image[63848];
-static const char candidate_sha256[]="d85ee17eeaf68e14d8634ab5d0a59f2ae551ea9aa3c6ded9451ba3fed13458fc";
+static uint8_t candidate_image[131072],restore_image[63848];
+static const char candidate_sha256[]="cc1c222b7a5bb03866c5a1baa57e7587fc214596ed9b271b4f27410332d43d43";
 static const char restore_sha256[]="fb29585b17a0ee1883287def35a1b107695a13c4dc85355cb27f54921ea5f514";
 struct job { const uint8_t *image; size_t length; const char *sha256; };
 static struct job image_job(int restore) {
@@ -24,7 +24,7 @@ static uint16_t sum16(const uint8_t b[64]) {
 static int job_valid(const struct job *j) {
     return j && ((j->image==candidate_image && j->length==sizeof(candidate_image))
         || (j->image==restore_image && j->length==sizeof(restore_image)))
-        && j->length>=48 && j->length<=65536 && j->length%4==0;
+        && j->length>=48 && j->length<=131072 && j->length%4==0;
 }
 static unsigned report_count(const struct job *j) {
     return job_valid(j)?3u+1u+(unsigned)((j->length-48+55)/56):0;

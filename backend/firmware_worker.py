@@ -30,7 +30,7 @@ def main():
         body=read()
         if set(body)!={'action','device_id'} or body['action']!='inspect' or not isinstance(body['device_id'],str):raise ValueError('Invalid inspection request.')
         events=[];session=LoaderSession(body['device_id'],emit=events.append)
-        session.execute(bytes(65000),True);send({'event':'ready','events':events})
+        session.execute(bytes(131072),True);send({'event':'ready','events':events})
         # No HID writes while waiting. Expiry or closed stdin releases this same handle.
         replies=queue.Queue()
         def approval():

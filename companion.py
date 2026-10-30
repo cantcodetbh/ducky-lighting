@@ -64,7 +64,7 @@ def main():
     logging.info('Companion started; firmware requires explicit browser confirmation.')
     import signal
     def terminate(signum,frame):
-        if server.RequestHandlerClass and getattr(server,'ducky_firmware',None) and server.ducky_firmware.busy:
+        if application.firmware.busy or application.hardware.lock.locked():
             logging.warning('Quit deferred while firmware is running.');return
         threading.Thread(target=server.shutdown,daemon=True).start()
     signal.signal(signal.SIGTERM,terminate)

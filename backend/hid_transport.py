@@ -1,4 +1,4 @@
-"""Portable, typed custom9002 Feature transport. No Output/loader/firmware API."""
+"""Portable, typed custom9002/9003/9004 Feature transport. No Output/loader/firmware API."""
 import hashlib,threading,time
 DESC=bytes.fromhex('05010906a101050719e029e71500250175019508810295017508810395037501050819012903910295017505910395067508150026a4000507190029a48100c00600ff0901a101150026ff00750895080902b102c0')
 VID,PID,REV=0x3233,0x6301,0x9002
@@ -20,7 +20,7 @@ class PortableHID:
         # Do not expose serial/path strings in the local API or diagnostics.
         return str(int.from_bytes(hashlib.sha256(bytes(d['path'])+str(d.get('release_number')).encode()).digest()[:8],'big'))
     @staticmethod
-    def candidate(d):return d.get('release_number')==REV and ((d.get('usage_page'),d.get('usage'))==(0xff00,1) or ((d.get('usage_page'),d.get('usage'))==(1,6) and d.get('interface_number') in (0,-1)))
+    def candidate(d):return d.get('release_number') in (REV,0x9003,0x9004) and ((d.get('usage_page'),d.get('usage'))==(0xff00,1) or ((d.get('usage_page'),d.get('usage'))==(1,6) and d.get('interface_number') in (0,-1)))
     def selected(self):
         candidates=[d for d in self.enumerate() if self.candidate(d)]
         vendor=[d for d in candidates if d.get('usage_page')==0xff00]
@@ -28,21 +28,30 @@ class PortableHID:
         return candidates[0] if len(candidates)==1 else None
     def status(self):
         all_devices=self.enumerate();selected=self.selected() if all_devices else None
-        return {'ok':True,'connected':bool(all_devices),'rgb_control':selected is not None,'device_id':self.identity(selected) if selected else None,'matching_interfaces':1 if selected else 0}
+        return {'ok':True,'connected':bool(all_devices),'rgb_control':selected is not None,'device_id':self.identity(selected) if selected else None,'matching_interfaces':1 if selected else 0,'effects':bool(selected and selected.get('release_number')==0x9004),'firmware':'9004' if selected and selected.get('release_number')==0x9004 else '9003' if selected and selected.get('release_number')in (0x9003,0x9004) else '9002','onboard_profiles':bool(selected and selected.get('release_number')in (0x9003,0x9004))}
     @staticmethod
     def operations(action,payload):
+        if action=='effect':
+            if not isinstance(payload,list) or len(payload)!=5 or any(type(v) is not int for v in payload) or payload[0] not in (1,4,6,8) or not 1<=payload[1]<=10 or any(not 0<=v<=255 for v in payload[2:]):raise TransportError('Invalid native effect.')
+            return [bytes([0xd1,6,*payload,0])]
+        if action=='clear-onboard':return [bytes([0xd1,5,0,0,0,0,0,0])]
         if action=='release':return [bytes([0xd1,3,0,0,0,0,0,0])]
-        if action!='pixels' or not isinstance(payload,list) or not 1<=len(payload)<=70:raise TransportError('Invalid typed colour operation.')
+        if action not in ('pixels','save') or not isinstance(payload,list) or not 1<=len(payload)<=70:raise TransportError('Invalid typed colour operation.')
         seen=set();ops=[]
         for row,col,rgb in payload:
             if type(row) is not int or type(col) is not int or not 0<=row<5 or not 0<=col<14 or (row,col) in seen or len(rgb)!=3 or any(type(v) is not int or not 0<=v<=255 for v in rgb):raise TransportError('Invalid or duplicate LED colour.')
             seen.add((row,col));ops.append(bytes([0xd1,1,row,col,*rgb,0]))
+        if action=='save':
+            if len(ops)!=70:raise TransportError('An onboard save requires all70 slots.')
+            ops.append(bytes([0xd1,4,0,0,0,0,0,0]))
         return ops
     def command(self,action,payload,device_id):
         submitted=accepted=0;device=None;started=time.monotonic();previous=None
         try:
             ops=self.operations(action,payload);chosen=self.selected()
             if not chosen or self.identity(chosen)!=device_id:raise TransportError('Keyboard disconnected or changed. Refresh the connection.')
+            if action in ('save','clear-onboard') and chosen.get('release_number')not in (0x9003,0x9004):raise TransportError('Onboard saving requires custom9003 firmware. No command sent.')
+            if action=='effect' and chosen.get('release_number')!=0x9004:raise TransportError('Native effects require custom9004. No command sent.')
             device=self.library().device();device.open_path(chosen['path'])
             from firmware_hid import feature_descriptor_valid
             descriptor=bytes(device.get_report_descriptor())
@@ -59,21 +68,24 @@ class PortableHID:
                         report=bytes(device.get_feature_report(0,9))
                         if len(report)==9 and report[0]==0:
                             b=report[1:]
-                            if b[:5]==b'DRGB\x01' and all(v in (0,1) for v in b[5:]):return b
+                            if b[:4]==b'DRGB' and b[4] in (1,2) and b[5]<=1 and b[6]<=1 and b[7]<=(3 if b[4]==2 else 1):return b
                     except OSError:pass
                 raise TransportError('No valid custom RGB status. Colour writes were not retried.')
             state=status();previous=bool(state[5])
-            if state[7]:raise TransportError('Keyboard is still processing a previous colour.')
+            if state[7]&1:raise TransportError('Keyboard is still processing a previous colour.')
+            if action in ('save','clear-onboard','effect') and state[4]!=2:raise TransportError('No onboard-capable handshake. No command sent.')
             for index,body in enumerate(ops):
                 still_same();time.sleep(.01);submitted+=1
                 if device.send_feature_report(b'\0'+body)!=9:raise TransportError('Colour transfer failed. No automatic retry.')
                 if index:accepted+=1
             for _ in range(3):
                 state=status()
-                if not state[7]:break
-            if state[7] or state[6]!=1 or state[5]!=(action!='release'):raise TransportError('Final command was not acknowledged.')
+                if not state[7]&1:break
+            if state[7]&1 or state[6]!=1 or state[5]!=(action not in ('release','clear-onboard')):raise TransportError('Final command was not acknowledged.')
+            if action=='save' and not state[7]&2:raise TransportError('Onboard commit was not acknowledged.')
+            if action=='clear-onboard' and state[7]&2:raise TransportError('Onboard clear was not acknowledged.')
             accepted=len(ops)
-            result={'ok':True,'accepted_count':accepted,'submitted_count':submitted,'previous_rgb_active':previous,'device_id':device_id,'elapsed_ms':round((time.monotonic()-started)*1000,1),'transport':'hidapi','physical_validation':'Windows/Linux physical validation pending'}
+            result={'ok':True,'accepted_count':accepted,'submitted_count':submitted,'previous_rgb_active':previous,'device_id':device_id,'elapsed_ms':round((time.monotonic()-started)*1000,1),'onboard_saved':bool(state[7]&2) if state[4]==2 else None,'transport':'hidapi','physical_validation':'Windows/Linux physical validation pending'}
         except (OSError,TransportError,ValueError,TypeError) as e:result={'ok':False,'error':str(e),'accepted_count':accepted,'submitted_count':submitted,'previous_rgb_active':previous,'unknown':submitted>accepted}
         finally:
             if device is not None:

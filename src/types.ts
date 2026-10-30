@@ -41,7 +41,7 @@ export interface DeviceStatus {
   detail: string;
   device_id?: string;
   firmware?: string;
-  capabilities: { rgb: boolean; effects: boolean };
+  capabilities: { rgb: boolean; effects: boolean; onboard_profiles?: boolean };
   last_command?: unknown;
   can_quit?: boolean;
 }

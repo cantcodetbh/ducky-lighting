@@ -4,11 +4,18 @@ sys.path.insert(0,str(Path(__file__).resolve().parents[1]/'backend'))
 from server import Application,handler,ThreadingHTTPServer,LAYOUTS,validate_profiles
 from hardware import Hardware
 class FakeHardware:
-    def __init__(self):self.writes=[];self.mode='demo'
-    def status(self):return {'ok':True,'mode':self.mode,'connected':self.mode!='demo','device_id':'123','detail':'RAM test','capabilities':{'rgb':self.mode=='available','effects':False}}
+    def __init__(self):self.writes=[];self.mode='demo';self.onboard=False
+    def status(self):return {'ok':True,'mode':self.mode,'connected':self.mode!='demo','device_id':'123','detail':'RAM test','capabilities':{'rgb':self.mode=='available','effects':False,'onboard_profiles':self.onboard}}
     def apply(self,*args):
         if self.mode!='available':return {'ok':False,'error':'disconnected'}
         self.writes.append(args);return {'ok':True,'accepted_count':64}
+    def save_onboard(self,*args):
+        if not self.onboard:return {'ok':False,'error':'onboard firmware required'}
+        self.writes.append(('save',args));return {'ok':True,'onboard_saved':True}
+    def clear_onboard(self,*args):
+        if not self.onboard:return {'ok':False,'error':'onboard firmware required'}
+        self.writes.append(('clear',args));return {'ok':True,'onboard_saved':False}
+    def effect(self,*args):self.writes.append(('effect',args));return {'ok':True,'accepted_count':1}
     def release(self,*args):self.writes.append(args);return {'ok':True}
 class Backend(unittest.TestCase):
     def setUp(self):
@@ -29,6 +36,30 @@ class Backend(unittest.TestCase):
         self.assertEqual(self.request('/api/lighting',body)[0],409)
         self.hw.mode='available';self.assertEqual(self.request('/api/lighting',body)[0],200)
         body['colours']['9:9']='#ffffff';self.assertEqual(self.request('/api/lighting',body)[0],400);self.assertEqual(len(self.hw.writes),1)
+    def test_onboard_api_separate_explicit_consent_and_no_9002_writes(self):
+        body={'layout':'iso','colours':{k['id']:'#123456' for k in LAYOUTS['iso']['keys']},'device_id':'123','consent':True}
+        self.assertEqual(self.request('/api/onboard/save',body)[0],409);self.assertEqual(self.hw.writes,[])
+        self.hw.onboard=True
+        self.assertEqual(self.request('/api/onboard/save',{**body,'consent':False})[0],400)
+        self.assertEqual(self.request('/api/onboard/save',body,Origin='https://evil.example')[0],403)
+        self.assertEqual(self.request('/api/onboard/save',body)[1]['onboard_saved'],True)
+        self.assertEqual(self.request('/api/onboard/clear',{'device_id':'123','consent':True})[1]['onboard_saved'],False)
+        hw=Hardware();calls=[];hw.command=lambda args,identity,count:calls.append((args,count)) or {'ok':True}
+        hw.save_onboard('iso',body['colours'],'123');self.assertEqual(calls[0][1],71);self.assertEqual(len(calls[0][0][1]),700)
+        for c in (3,5,7):self.assertIn(f'04{c:02x}123456',calls[0][0][1])
+        hw=Hardware();hw.status=lambda force=False:{'mode':'available','device_id':'123','capabilities':{'onboard_profiles':False}}
+        hw.invoke=lambda args:self.fail('9002 must not receive persistence commands');self.assertFalse(hw.clear_onboard('123')['ok'])
+    def test_native_effect_api_validation_and_capability_gate(self):
+        body={'effect':'Reactive','speed':5,'colour':'#ff0077','device_id':'123','consent':True}
+        self.assertEqual(self.request('/api/effect',body)[0],200)
+        self.assertEqual(self.hw.writes[-1],('effect',('Reactive',5,[255,0,119],'123')))
+        for update in ({'effect':'flash'},{'speed':True},{'speed':11},{'colour':'red'},{'consent':False}):self.assertEqual(self.request('/api/effect',{**body,**update})[0],400)
+        self.assertEqual(self.request('/api/effect',body,Origin='https://evil.example')[0],403)
+        hw=Hardware();hw.status=lambda force=False:{'mode':'available','device_id':'123','capabilities':{'effects':False}}
+        hw.invoke=lambda args:self.fail('9003 must not receive effect commands');self.assertFalse(hw.effect('Reactive',5,[255,0,0],'123')['ok'])
+        calls=[];hw.status=lambda force=False:{'mode':'available','device_id':'123','capabilities':{'effects':True}}
+        hw.invoke=lambda args:calls.append(args) or {'ok':True,'accepted_count':1}
+        self.assertTrue(hw.effect('Ripple',7,[255,1,2],'123')['ok']);self.assertEqual(calls,[['--device','123','--effect','4','7','255','1','2']])
     def test_profile_persistence_and_invalid_file_preserved(self):
         scene={'model':'black','layout':'iso','effect':'Static','color':'#ff0000','brightness':80,'speed':5,'paints':{'4:5':'#123456'}};p={'id':'abc','name':'Evening','scene':scene}
         self.assertEqual(self.request('/api/profiles',{'profiles':[p]})[0],200)

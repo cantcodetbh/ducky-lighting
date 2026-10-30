@@ -1,8 +1,8 @@
 # Firmware setup
 
-Ducky Lighting uses custom9002 firmware to control the keyboard's LEDs. Installation and manufacturer V1.10 restoration are available in the companion app on macOS, Windows and Linux.
+Ducky Lighting uses custom9004 firmware for static RGB, native animations and onboard static colours. Installation and manufacturer V1.10 restoration are available in the companion app on macOS, Windows and Linux.
 
-If the app already detects custom9002, no firmware update is needed.
+If the app detects custom9004, no firmware update is needed. Earlier custom9002/9003 firmware still supports its original features; update to add native animations and onboard static saving. Installing firmware resets saved startup colours.
 
 ## Compatibility and risk
 
@@ -19,9 +19,9 @@ Use a stable, direct USB connection. Disconnect other Ducky or Nuvoton devices a
 3. Click **Prepare official firmware**. The app downloads Ducky's V1.10 updater, verifies it and prepares the supported images locally. The EXE is never executed. Alternatively, select a local copy of `Ducky_Mecha_Mini_RGB_V1.10_DKME2061ST.exe`.
 4. Unplug the keyboard. Hold **D**, reconnect the cable, then release D. Typing and lighting may stop while the bootloader is active.
 5. Click **Check bootloader**. The app checks the interface, controller and configuration before allowing installation. This check does not erase flash.
-6. Choose **Install custom9002 · browser RGB**. Read the warning, accept the risk and type **FLASH DKME2061ST**.
+6. Choose **Install custom9004 · RGB, effects and onboard colours**. Read the warning, accept the risk and type **FLASH DKME2061ST**.
 7. Click **Erase application and install firmware**. Keep the cable connected and the companion running until the operation finishes.
-8. Once all packets are acknowledged, unplug the keyboard and reconnect normally with D released. Check that typing and lighting work, then use **Apply to keyboard** in the editor.
+8. Once all packets are acknowledged, unplug the keyboard and reconnect normally with D released. Check that typing and lighting work, then use **Apply to keyboard** for colours or **Apply effect** for native animations.
 
 Confirmation expires after two minutes. If it expires, repeat the bootloader check.
 
@@ -74,3 +74,9 @@ SHA-256: 6d5b1a8fb16c53fc2875dad5399cd574b1fc05eef83141dd89fbcee0ede5aab8
 A different file or version is rejected. Firmware preparation stays on your computer; the updater is not uploaded to the hosted editor. Manufacturer images are downloaded or supplied at setup time, rather than bundled with the app.
 
 For image hashes, extraction boundaries and protocol details, see [firmware verification](development.md#firmware-verification).
+
+## Colours and effects after installation
+
+Wave, Breathing, Reactive and Ripple run inside the keyboard after Apply effect. Reactive and Ripple use physical keypresses; the companion does not capture typing. Native palettes and timing can differ from the preview.
+
+Save to keyboard stores one static colour frame. It returns after unplugging, even with the companion closed. Save static frame captures a still image when an animated effect is selected; it does not save the animation. After flashing, save your preferred colours again. Select ISO UK for an ISO keyboard so its extra keys are included.

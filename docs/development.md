@@ -77,7 +77,7 @@ Firmware tests use synthetic images and RAM-backed device fixtures. The Nuvoton 
 | `backend/firmware.py` | Image preparation, confirmation and update coordination |
 | `backend/firmware_hid.py`, `backend/firmware_ipc.py` | Portable firmware transport and worker communication |
 | `backend/native/` | macOS IOKit helpers |
-| `firmware/host-rgb/` | Custom9002 patch sources |
+| `firmware/effects-rgb/` | Current custom9004 sources (native effects and onboard static journal) |
 | `packaging/` | App bundles, installers and platform resources |
 
 ## Local API and storage
@@ -109,7 +109,7 @@ Preparation extracts offsets `0x20F0B8..0x21EA20` (63,848 bytes) and checks the 
 | Image | SHA-256 |
 |---|---|
 | Manufacturer V1.10 | `fb29585b17a0ee1883287def35a1b107695a13c4dc85355cb27f54921ea5f514` |
-| Custom9002 | `d85ee17eeaf68e14d8634ab5d0a59f2ae551ea9aa3c6ded9451ba3fed13458fc` |
+| Custom9004 (131072 bytes) | `cc1c222b7a5bb03866c5a1baa57e7587fc214596ed9b271b4f27410332d43d43` |
 
 Reproduce preparation offline with a local updater:
 
@@ -126,3 +126,13 @@ Each reply must pass checksum and sequence checks. The 16-bit checksum can miss 
 ## Third-party software
 
 The Nuvoton C parser is an Apache-2.0 test fixture with its [licence](../tests/firmware-fixture/Nuvoton-LICENSE), [notice](../tests/firmware-fixture/Nuvoton-NOTICE) and [provenance](../tests/firmware-fixture/provenance.json). Instrument Sans is distributed under its [OFL licence](../src/assets/Instrument-Sans-OFL.txt). HIDAPI, Python and PyInstaller retain their respective licences.
+
+### Native effects and onboard colours
+
+The typed API adds POST `/api/effect` (`effect`, `speed`, `colour`, `device_id`, `consent`), POST `/api/onboard/save` (a complete `layout`/`colours` frame plus `device_id`/`consent`) and POST `/api/onboard/clear` (`device_id`/`consent`). Host/Origin/token checks apply. No generic report or arbitrary-memory endpoint is exposed.
+
+Custom9004 accepts D1 operation6 with original renderer mode1/4/6/8, bounded speed1–10 and RGB8. Operation4 saves a static frame;5 clears it. The 240-byte CRC32/commit-last record alternates between reserved APROM pages0x1FC00 and0x1FE00, with the previous valid record retained while writing. Flash operations run from SRAM. Clear and identical-save paths are covered by offline tests; physical interrupted-save recovery is not established. A complete firmware installation initializes these pages and clears saved colours.
+
+Source builds can reproduce the candidate using `scripts/effects/build_candidate.py` with the exact official updater. It needs Apple clang, pyelftools, Capstone and ziglang/LLD. `scripts/effects/validate_arm.py` and `validate_effects.py` use Unicorn to execute the compiled firmware and native renderers offline. Installer users do not need these tools: preparation applies the published fixed patch locally and checks the exact resulting SHA-256.
+
+Static saving/restoration and all four native effects were physically verified on one DKME2061ST using macOS. The effect path does not stream frames or capture host keypresses. Only static colours persist across power removal in this release. Windows/Linux physical USB operation and interrupted-flash recovery remain unverified.

@@ -28,8 +28,8 @@ class HIDFirmware(unittest.TestCase):
             with self.assertRaises(ValueError):LoaderSession(device_id,m)
             self.assertEqual(m.writes,[])
     def test_same_path_replug_cannot_redirect_checked_handle(self):
-        module=VirtualHID();session=LoaderSession(identity(module.entries[0]),module);session.execute(bytes(65000),True);module.generation+=1
-        with self.assertRaises(OSError):session.execute(bytes(65000))
+        module=VirtualHID();session=LoaderSession(identity(module.entries[0]),module);session.execute(bytes(131072),True);module.generation+=1
+        with self.assertRaises(OSError):session.execute(bytes(131072))
         self.assertEqual(module.opens,1);self.assertFalse(module.flash);session.close()
     def test_arbitrary_image_file_is_rejected(self):
         with tempfile.NamedTemporaryFile() as file:
@@ -38,18 +38,18 @@ class HIDFirmware(unittest.TestCase):
             with self.assertRaises(ValueError):pinned_image(file.name,'arbitrary')
     def test_real_subprocess_held_session_and_parent_transcript_audit(self):
         command=[sys.executable,str(ROOT/'tests/fw_worker_fixture.py')]
-        for name,length in [('candidate',65000),('restore',63848)]:
+        for name,length in [('candidate',131072),('restore',63848)]:
             with patch('firmware_ipc.worker_command',return_value=command):
                 process=SessionProcess(identity(VirtualHID().entries[0]))
                 try:
-                    audit(process.inspect(),bytes(65000),True)
+                    audit(process.inspect(),bytes(131072),True)
                     events=list(process.program(name,'ignored-test-path'));audit(events,bytes(i%251 for i in range(length)))
                 finally:process.close()
     def test_windows_linux_coordinator_uses_held_worker_and_persisted_guards(self):
         for platform in ('win32','linux'):
             with tempfile.TemporaryDirectory() as folder,patch('firmware_ipc.worker_command',return_value=[sys.executable,str(ROOT/'tests/fw_worker_fixture.py')]):
                 hardware=type('Hardware',(),{'lock':threading.Lock()})();fw=Firmware(hardware,folder,platform=platform);fw.available=lambda:True
-                module=VirtualHID();fw.discovery=Discovery(module=module);fw.images=lambda:{name:bytes(i%251 for i in range(n)) for name,n in [('candidate',65000),('restore',63848)]}
+                module=VirtualHID();fw.discovery=Discovery(module=module);fw.images=lambda:{name:bytes(i%251 for i in range(n)) for name,n in [('candidate',131072),('restore',63848)]}
                 loader=fw.loader();plan=fw.inspect({'device_id':loader['device_id'],'model':'DKME2061ST','consent':True})
                 fw.flash({'device_id':loader['device_id'],'plan_nonce':plan['plan_nonce'],'model':'DKME2061ST','consent':True,'accept_risk':True,'confirmation':'FLASH DKME2061ST','image':'candidate'})
                 for _ in range(200):

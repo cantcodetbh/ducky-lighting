@@ -6,7 +6,7 @@ from companion import handoff
 class Hardware:
     def __init__(self):self.lock=threading.Lock()
 class VirtualLoader:
-    def __init__(self):self.calls=[];self.device={'device_id':'123','location':1048576};self.fail=None;self.images={'candidate':bytes((i*131+17)%256 for i in range(65000)),'restore':bytes((i*137+23)%256 for i in range(63848))}
+    def __init__(self):self.calls=[];self.device={'device_id':'123','location':1048576};self.fail=None;self.images={'candidate':bytes((i*131+17)%256 for i in range(131072)),'restore':bytes((i*137+23)%256 for i in range(63848))}
     def __call__(self,args):
         self.calls.append(args)
         if args[0]=='--devices':return [{'loader':self.device}]

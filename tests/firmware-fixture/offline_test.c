@@ -17,7 +17,7 @@ void ReadData(unsigned start,unsigned end,void *data) {
         if(read_fault && end>start)((uint8_t *)data)[0]^=1;}
 }
 void WriteData(unsigned start,unsigned end,const void *data) {
-    CHECK(end>=start && end<=65536);++write_calls;memcpy(aprom+start,data,end-start);
+    CHECK(end>=start && end<=131072);++write_calls;memcpy(aprom+start,data,end-start);
     if(swap_write && end-start>=2){uint8_t first=aprom[start];aprom[start]=aprom[start+1];aprom[start+1]=first;swap_write=0;}
 }
 void EraseAP(unsigned start,unsigned size) {
@@ -83,7 +83,7 @@ int main(int argc,char **argv) {
         for(size_t i=0;i<sizeof(ldrom);++i)CHECK(ldrom[i]==0x5a);
         /* Walk all packets independently: only fixed command family, exact
            offset/size and zero unused tail; reconstruct the image byte-for-byte. */
-        uint8_t reconstructed[65536]={0};size_t offset=0;
+        uint8_t reconstructed[131072]={0};size_t offset=0;
         for(unsigned step=0;step<report_count(&j);++step) {
             uint8_t tx[64];CHECK(fixed_request(&j,step,tx));
             CHECK(le32(tx)==(step==0?0xae:step==1?0xb1:step==2?0xa2:step==3?0xa0:0));

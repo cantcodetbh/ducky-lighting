@@ -2050,3 +2050,30 @@ p {
 #firmware-job-status { overflow-wrap:anywhere; }
 .setup-dialog a { color:var(--accent); }
 .setup-dialog a.btn { color:white; text-decoration:none; }
+
+.onboard-profile { border-top:1px solid var(--line); margin-top:16px; padding-top:16px; }
+.onboard-profile h3 { font-size:13px; font-weight:600; margin:0; }
+.onboard-profile p { margin:7px 0 0; font-size:11px; line-height:1.6; color:var(--muted); }
+.onboard-buttons { display:flex; flex-wrap:wrap; align-items:center; gap:12px; margin-top:12px; }
+.onboard-profile .onboard-status:empty { display:none; }
+
+/* Keep the permanent hardware action in the main command path. */
+.hardware-actions { display:flex; align-items:center; gap:8px; }
+#save-onboard { min-width:156px; }
+.keyboard-save-state { display:flex; align-items:flex-start; gap:9px; margin:0 0 20px; color:var(--muted); }
+.storage-symbol { display:inline-flex; padding-top:1px; }
+.storage-symbol .icon { width:16px; height:16px; }
+.keyboard-save-state p { margin:0; font-size:12px; line-height:1.6; text-wrap:pretty; }
+.keyboard-save-state #onboard-status { margin-top:3px; font-weight:500; color:var(--ink); }
+.keyboard-save-state #onboard-status:empty { display:none; }
+.keyboard-save-state[data-state="saved"] .storage-symbol { color:var(--ink); }
+@media (max-width:650px) {
+  .command-actions { flex-wrap:wrap; justify-content:flex-start; gap:8px; }
+  .bottom-device { flex:1; }
+  .hardware-actions { width:100%; display:grid; grid-template-columns:1fr 1fr; gap:8px; }
+  .command-bar .hardware-actions .btn { min-height:42px; font-size:12px; }
+  #save-onboard { min-width:0; }
+  .keyboard-save-state { margin:0 0 16px; }
+}
+
+.workspace-heading { padding-bottom:12px; }

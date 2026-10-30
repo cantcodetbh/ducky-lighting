@@ -40,7 +40,7 @@ class VirtualHID:
 def verify():
     from firmware import audit
     results=[]
-    for name,length in [('candidate',65000),('restore',63848)]:
+    for name,length in [('candidate',131072),('restore',63848)]:
         module=VirtualHID();events=[];image=bytes(i%251 for i in range(length));session=LoaderSession(identity(module.entries[0]),module,events.append)
         session.execute(image,True);assert len(module.writes)==3 and not module.flash
         events.clear();session.execute(image);report=audit(events,image);assert bytes(module.flash)==image;assert module.opens==1
@@ -48,11 +48,11 @@ def verify():
     negative=[]
     for fault in ('mcu','config','checksum','sequence','short','numbered','duplicate','partial_write','disconnect'):
         module=VirtualHID();module.error=fault;session=LoaderSession(identity(module.entries[0]),module)
-        try:session.execute(bytes(65000))
+        try:session.execute(bytes(131072))
         except (ValueError,OSError):pass
         else:raise AssertionError('Virtual failure accepted: '+fault)
         count=len(module.writes)
-        try:session.execute(bytes(65000))
+        try:session.execute(bytes(131072))
         except ValueError:pass
         else:raise AssertionError('Failed session reused')
         assert len(module.writes)==count

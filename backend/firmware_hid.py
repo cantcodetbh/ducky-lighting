@@ -124,7 +124,7 @@ class LoaderSession:
 def pinned_image(path,name):
     from firmware import RGB_SHA,STOCK_SHA,digest
     if name not in ('candidate','restore'):raise LoaderError('Unsupported image choice.')
-    limit=65000 if name=='candidate' else 63848
+    limit=131072 if name=='candidate' else 63848
     with Path(path).open('rb') as file:data=file.read(limit+1)
     if len(data)!=limit or digest(data)!=(RGB_SHA if name=='candidate' else STOCK_SHA):raise LoaderError('Firmware image hash or size mismatch. No programming sent.')
     return data

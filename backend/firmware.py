@@ -5,7 +5,7 @@ from runtime import ROOT,data_root,VERSION
 OFFICIAL_URL='https://cdn.shopify.com/s/files/1/0728/4382/1295/files/Ducky_Mecha_Mini_RGB_V1.10_DKME2061ST.exe?v=1744792813'
 UPDATER_SHA='6d5b1a8fb16c53fc2875dad5399cd574b1fc05eef83141dd89fbcee0ede5aab8'
 STOCK_SHA='fb29585b17a0ee1883287def35a1b107695a13c4dc85355cb27f54921ea5f514'
-RGB_SHA='d85ee17eeaf68e14d8634ab5d0a59f2ae551ea9aa3c6ded9451ba3fed13458fc'
+RGB_SHA='cc1c222b7a5bb03866c5a1baa57e7587fc214596ed9b271b4f27410332d43d43'
 NATIVE=ROOT/'build/ducky-firmware'
 RISK='Experimental firmware. Only one DKME2061ST has been physically validated. Interrupted-flash recovery is unproven; a failed update may require hardware repair. Packet acknowledgements are not full flash readback.'
 
@@ -14,7 +14,7 @@ def construct_images(updater):
     if len(updater)!=3307520 or digest(updater)!=UPDATER_SHA:raise ValueError('Choose the exact official DKME2061ST V1.10 updater. This file hash is not supported; nothing was executed or sent.')
     stock=updater[0x20f0b8:0x21ea20]
     if len(stock)!=63848 or digest(stock)!=STOCK_SHA or struct.unpack_from('<I',updater,0x21ea20)[0]!=63848:raise ValueError('Firmware extraction did not match the pinned image.')
-    patch=json.loads((ROOT/'backend/firmware-patch.json').read_text());image=bytearray(stock+b'\xff'*(65000-len(stock)))
+    patch=json.loads((ROOT/'backend/firmware-patch.json').read_text());image=bytearray(stock+b'\xff'*(131072-len(stock)))
     allowed=set()
     for edit in patch['edits']:
         address=int(edit['address'],16);before=bytes.fromhex(edit['before']);after=bytes.fromhex(edit['after'])
@@ -22,8 +22,14 @@ def construct_images(updater):
         image[address:address+len(after)]=after;allowed.update(range(address,address+len(after)))
     for segment in patch['segments']:
         address=segment['address'];data=bytes.fromhex(segment['hex'])
-        if address<len(stock) or address+len(data)>65000:raise ValueError('Patch lies outside its fixed append area.')
+        if address<len(stock) or address+len(data)>0x1fc00:raise ValueError('Patch lies outside its fixed append area.')
         image[address:address+len(data)]=data
+    journal=patch['journal_initialization']
+    if len(journal)!=2 or {int(e['address'],16) for e in journal}!={0x1fc00,0x1fe00}:raise ValueError('Journal layout mismatch.')
+    for entry in journal:
+        address=int(entry['address'],16);data=bytes.fromhex(entry['hex'])
+        if len(data)!=512:raise ValueError('Journal page mismatch.')
+        image[address:address+512]=data
     if image[:0xc0]!=stock[:0xc0] or digest(image)!=RGB_SHA or any(a!=b and i not in allowed for i,(a,b) in enumerate(zip(stock,image))):raise ValueError('Resulting firmware hash or vector table mismatch.')
     return {'candidate':bytes(image),'restore':stock}
 
@@ -93,7 +99,7 @@ class Firmware:
             supported=bool(device.get('capabilities',{}).get('rgb'));available=self.available()
             return {'ok':True,'version':VERSION,'flashing_enabled':available,'writer_present':available,'images_bundled':False,'images_ready':self.images() is not None,
               'state':'already_supported' if supported else 'experimental' if available else 'platform_unavailable','supported_research_model':'DKME2061ST',
-              'device':{'connected':device.get('connected',False),'firmware':device.get('firmware'),'mode':device.get('mode','demo')},'loader':None if self.busy else self.loader(),
+              'device':{'connected':device.get('connected',False),'firmware':device.get('firmware'),'mode':device.get('mode','demo'),'effects':device.get('capabilities',{}).get('effects',False),'onboard_profiles':device.get('capabilities',{}).get('onboard_profiles',False)},'loader':None if self.busy else self.loader(),
               'job':dict(self.job) if self.job else None,'recovery_guaranteed':False,'platform':self.platform,'message':RISK,
               'platform_detail':'Experimental firmware installation is available on macOS, Windows and Linux. Windows/Linux physical USB flashing is unverified. Linux requires the included HID permission rule and reconnection; Windows uses its built-in HID driver.'}
     def prepare(self,body):
@@ -146,7 +152,7 @@ class Firmware:
             if self.platform!='darwin' and self.runner is None and (not self.worker or self.worker.process.poll() is not None):raise ValueError('The checked bootloader session expired. Check it again.')
             if not self.hardware.lock.acquire(False):raise ValueError('A keyboard command is already running.')
             self.spent.add(loader['device_id']);self.plan=None;self.busy=True
-            self.job={'id':secrets.token_hex(8),'state':'programming','image':body['image'],'loader_device_id':loader['device_id'],'loader_transport_id':loader.get('transport_id'),'submitted':0,'total_reports':1164 if body['image']=='candidate' else 1144,'message':'Keep the cable connected. Closing this tab does not stop the companion.'}
+            self.job={'id':secrets.token_hex(8),'state':'programming','image':body['image'],'loader_device_id':loader['device_id'],'loader_transport_id':loader.get('transport_id'),'submitted':0,'total_reports':4+(len(images[body['image']])-48+55)//56,'message':'Keep the cable connected. Closing this tab does not stop the companion.'}
 
             try:
                 self.directory.mkdir(parents=True,exist_ok=True)

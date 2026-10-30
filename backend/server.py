@@ -45,11 +45,15 @@ class Application:
         if path=='/api/profiles' and set(b)=={'profiles'}:self.save(b['profiles']);return {'ok':True}
         if b.get('consent') is not True:raise ValueError('Use Apply to keyboard to send a lighting command.')
         if not isinstance(b.get('device_id'),str) or not re.fullmatch('[0-9]{1,24}',b['device_id']):raise ValueError('Refresh the device connection before applying.')
+        if path=='/api/effect' and set(b)=={'device_id','consent','effect','speed','colour'}:
+            if b['effect'] not in {'Wave','Ripple','Reactive','Breathing'} or type(b['speed']) is not int or not 1<=b['speed']<=10 or not hex_colour(b['colour']):raise ValueError('Invalid native effect.')
+            return self.hardware.effect(b['effect'],b['speed'],[int(b['colour'][i:i+2],16) for i in (1,3,5)],b['device_id'])
+        if path=='/api/onboard/clear' and set(b)=={'device_id','consent'}:return self.hardware.clear_onboard(b['device_id'])
         if path=='/api/release' and set(b)=={'device_id','consent'}:return self.hardware.release(b['device_id'])
-        if path=='/api/lighting' and set(b)=={'layout','colours','device_id','consent'}:
+        if path in ('/api/lighting','/api/onboard/save') and set(b)=={'layout','colours','device_id','consent'}:
             layout=b['layout'];colours=b['colours']
             if layout not in LAYOUTS or not isinstance(colours,dict) or set(colours)!={k['id'] for k in LAYOUTS[layout]['keys']} or not all(hex_colour(v) for v in colours.values()):raise ValueError('Send exactly one complete, valid keyboard frame.')
-            return self.hardware.apply(layout,colours,b['device_id'])
+            return self.hardware.save_onboard(layout,colours,b['device_id']) if path=='/api/onboard/save' else self.hardware.apply(layout,colours,b['device_id'])
         raise ValueError('Unknown lighting operation.')
 def handler(app):
     class Handler(BaseHTTPRequestHandler):
@@ -70,7 +74,7 @@ def handler(app):
             path=urlsplit(self.path).path
             if path=='/api/status':return self.reply(200,{**app.hardware.status(),'token':app.token,'companion_version':VERSION,'can_quit':hasattr(self.server,'ducky_shutdown'),'firmware_busy':app.firmware.busy})
             if path=='/api/firmware':return self.reply(200,app.firmware.policy(app.hardware.status()))
-            if path=='/api/capabilities':return self.reply(200,{'ok':True,**app.hardware.status()['capabilities'],'adapter':'custom9002-only','stock_rgb_verified':False,'frame_readback':False,'animation_streaming':False})
+            if path=='/api/capabilities':return self.reply(200,{'ok':True,**app.hardware.status()['capabilities'],'adapter':'custom9002/custom9003/custom9004','stock_rgb_verified':False,'frame_readback':False,'animation_streaming':False})
             if path=='/api/profiles':
                 try:return self.reply(200,{'ok':True,'profiles':app.profiles()})
                 except (ValueError,TypeError):return self.reply(500,{'ok':False,'error':'The saved profile file is invalid. It has been preserved; export your browser profiles before saving.'})
@@ -88,7 +92,7 @@ def handler(app):
                 body=json.loads(self.rfile.read(n))
                 if urlsplit(self.path).path=='/api/companion/quit' and body=={'consent':True} and hasattr(self.server,'ducky_shutdown'):
 
-                    if app.firmware.busy:return self.reply(409,{'ok':False,'error':'Firmware programming is still running. Keep the companion open.'})
+                    if app.firmware.busy or (getattr(app.hardware,'lock',None) and app.hardware.lock.locked()):return self.reply(409,{'ok':False,'error':'A keyboard operation is still running. Keep the companion open.'})
                     self.reply(200,{'ok':True});self.server.ducky_shutdown();return
                 result=app.mutate(urlsplit(self.path).path,body)
                 return self.reply(200 if result.get('ok') else 409,result)
@@ -100,7 +104,7 @@ if __name__=='__main__':
     application=Application();server=ThreadingHTTPServer(('127.0.0.1',args.port),handler(application));print(f'Ducky Lighting: http://127.0.0.1:{args.port}/',flush=True)
     import signal
     def terminate(signum,frame):
-        if application.firmware.busy:return
+        if application.firmware.busy or application.hardware.lock.locked():return
         threading.Thread(target=server.shutdown,daemon=True).start()
     signal.signal(signal.SIGTERM,terminate)
     try:server.serve_forever()

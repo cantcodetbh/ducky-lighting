@@ -178,7 +178,7 @@ static int load_image(const char *path,int restore) {
 }
 int main(int argc,char **argv) {
     if(argc==1 || (argc==2 && strcmp(argv[1],"--plan")==0)) {
-        puts("OFFLINE: fixed custom9002 or manufacturer1.10 APROM only. No device APIs. No embedded manufacturer images.");return 0;
+        puts("OFFLINE: fixed custom9004 or manufacturer1.10 APROM only. No device APIs. No embedded manufacturer images.");return 0;
     }
     if(argc==2 && strcmp(argv[1],"--devices")==0)return devices_cached();
     inspect_only=argc==4 && strcmp(argv[1],"--inspect")==0;

@@ -1,4 +1,5 @@
 import "./style.css";
+import { scale } from "./state";
 import { setupKeyboard, importedScene } from "./components/setup";
 import { setupAppearance } from "./theme";
 import { shell } from "./components/shell";
@@ -24,8 +25,11 @@ import {
   loadProfiles,
   saveProfiles,
   applyFrame,
+  saveOnboard,
+  clearOnboard,
   releaseDevice,
   quitCompanion,
+  applyEffect,
 } from "./api";
 import type {
   Scene,
@@ -55,6 +59,7 @@ let scene = defaultScene(),
   activeProfile = "",
   hydrated = false;
 const reduced = matchMedia("(prefers-reduced-motion: reduce)");
+let onboardNote = "", savedSceneSignature = "", onboardTone = "";
 let storageError = false;
 try {
   const saved = localStorage.getItem("ducky-lighting-scene-v1");
@@ -83,6 +88,11 @@ function toast(text: string) {
   );
 }
 function persist() {
+  if(savedSceneSignature && savedSceneSignature!==JSON.stringify(scene)) {
+    onboardNote="Preview changed. Save again to update your startup colours.";
+    onboardTone="changed";
+    hardwareUI();
+  }
   clearTimeout(persistTimer);
   persistTimer = window.setTimeout(() => {
     try {
@@ -241,6 +251,7 @@ function effectUI() {
     icon(paused ? "play" : "pause") +
     (paused ? "Resume preview" : "Pause preview");
   $("#pause").setAttribute("aria-pressed", String(paused));
+  hardwareUI();
 }
 function rebuild() {
   keyboard.render(scene);
@@ -610,6 +621,8 @@ $<HTMLInputElement>("#import-file").onchange = async (e) => {
   }
   input.value = "";
 };
+let clearOnboardConfirm=false;
+let clearOnboardTimer:ReturnType<typeof setTimeout>|undefined;
 function hardwareUI() {
   let quit = $<HTMLButtonElement>("#quit-companion");
   if (status?.can_quit && !quit) {
@@ -628,10 +641,28 @@ function hardwareUI() {
     $(".connection-panel").append(quit);
   }
   const available = status?.mode === "available";
+  const onboard=available && status?.capabilities.onboard_profiles;
+  const animated = ["Wave","Breathing","Reactive","Ripple"].includes(scene.effect);
+  const nativeEffects = available && status?.capabilities.effects;
+  $("#save-onboard").toggleAttribute("disabled",!onboard || busy);
+  $("#save-onboard").innerHTML = icon(onboardTone==="saved" ? "check" : "keyboard") + (onboardTone==="saving" ? "Saving…" : animated ? "Save static frame" : "Save to keyboard");
+  $("#save-onboard").setAttribute("aria-busy",String(onboardTone==="saving"));
+  $("#save-onboard").title=onboard ? "Apply and save static colours so they return after unplugging" : "Onboard saving is unavailable for this connection";
+  $(".keyboard-save-state").dataset.state=onboardTone;
+  $("#clear-onboard").toggleAttribute("disabled",!onboard || busy);
+  $("#onboard-hint").textContent=onboard
+    ? animated ? "Save keeps a still frame, not the animation." : "Save static colours to keep them after unplugging. No app needed."
+    : isHosted ? "Open the companion to save colours on your keyboard."
+    : available ? "Apply colours for this session. Onboard saving is unavailable with this firmware."
+    : "Save colours on your keyboard to keep them after unplugging. Connect a supported keyboard to begin.";
+  $("#onboard-status").textContent=onboardNote;
   $("#apply-hardware").innerHTML =
-    icon("check") + (isHosted ? "Connect keyboard" : busy ? "Sending…" : "Apply to keyboard");
-  $("#apply-hardware").toggleAttribute("disabled", !isHosted && (!available || busy));
-  $("#apply-hardware").title = available
+    icon("check") + (isHosted ? "Connect keyboard" : busy ? "Sending…" : animated ? "Apply effect" : "Apply to keyboard");
+  $("#apply-hardware").toggleAttribute("disabled", !isHosted && (!available || busy || (animated && !nativeEffects)));
+  $("#effect-note").textContent = animated
+    ? nativeEffects ? "Apply runs built-in " + scene.effect.toLowerCase() + (["Reactive","Ripple"].includes(scene.effect) ? " from physical keypresses. " : " on the keyboard. ") + "Native palettes and timing may differ from this preview. Per-key painting is static-only." : "Preview only with this firmware. Install the effects firmware to run animations on your keyboard."
+    : descriptions[scene.effect];
+  $("#apply-hardware").title = animated && !nativeEffects ? "This firmware supports static frames only; native effects need the effects firmware" : available
     ? "Send the current preview frame to your keyboard"
     : "Connect your keyboard with verified RGB firmware to apply colours";
   $("#device-mode").textContent =
@@ -645,7 +676,7 @@ function hardwareUI() {
     status?.detail ??
     "Local service unavailable. The editor still works in this browser.";
   $("#hardware-note").textContent = available
-    ? "Edits stay local until applied. Apply sends one current frame; animations continue in the preview. Your keyboard’s Space LEDs are grouped."
+    ? nativeEffects ? "Apply runs static colours or native effects until you unplug. Save keeps a static startup frame." : "Apply tries static colours until you unplug. Save keeps them as your startup colours. Animated effects need the effects firmware."
     : status?.mode === "detected"
       ? "Keyboard detected. This firmware has no verified RGB adapter, so lighting changes affect the preview only."
       : "Preview only. Connect your Mecha Mini to check hardware control.";
@@ -675,7 +706,12 @@ function hardwareUI() {
 }
 async function refreshDevice() {
   try {
+    const previousDevice=status?.device_id;
     status = await deviceStatus();
+    if(previousDevice!==status.device_id){
+      onboardNote="";savedSceneSignature="";onboardTone="";clearOnboardConfirm=false;clearTimeout(clearOnboardTimer);
+      $("#clear-onboard").textContent="Remove saved colours";
+    }
   } catch {
     status = undefined;
   }
@@ -705,6 +741,41 @@ async function refreshDevice() {
   }
   hardwareUI();
 }
+$("#save-onboard").onclick = async () => {
+  if(!status?.device_id || !status.capabilities.onboard_profiles || busy)return;
+  const targetDevice=status.device_id;
+  const savingSignature=JSON.stringify(scene);
+  busy=true;onboardTone="saving";onboardNote="Saving static colours. Keep your keyboard connected…";hardwareUI();
+  const snapshot=Object.fromEntries(layouts[scene.layout].keys.map(k=>[k.id,keyColour(scene,k,now(),triggers,reduced.matches)]));
+  try {
+    const result=await saveOnboard(scene.layout,snapshot,targetDevice);
+    if(status?.device_id!==targetDevice)throw Error("The connection changed. Reconnect and check the saved colours.");
+    if(result.onboard_saved!==true)throw Error("The keyboard did not confirm an onboard save.");
+    savedSceneSignature=savingSignature;
+    const changed=savingSignature!==JSON.stringify(scene);
+    onboardTone=changed?"changed":"saved";
+    onboardNote=changed?"Previous preview saved. Save again to include your latest edits.":"Saved on the keyboard. Your static colours return after unplugging, even with the app closed.";
+    toast("Colours saved to keyboard");
+  } catch(error){savedSceneSignature="";onboardTone="error";onboardNote=(error as Error).message;toast(onboardNote);}
+  finally{busy=false;hardwareUI();}
+};
+$("#clear-onboard").onclick = async () => {
+  if(!status?.device_id || !status.capabilities.onboard_profiles || busy)return;
+  if(!clearOnboardConfirm){
+    clearOnboardConfirm=true;$("#clear-onboard").textContent="Confirm removal";
+    clearOnboardTimer=setTimeout(()=>{clearOnboardConfirm=false;$("#clear-onboard").textContent="Remove saved colours";},5000);return;
+  }
+  clearTimeout(clearOnboardTimer);clearOnboardConfirm=false;$("#clear-onboard").textContent="Remove saved colours";
+  const targetDevice=status.device_id;
+  busy=true;savedSceneSignature="";onboardTone="";onboardNote="Removing saved keyboard colours…";hardwareUI();
+  try{
+    const result=await clearOnboard(targetDevice);
+    if(status?.device_id!==targetDevice)throw Error("The connection changed. Reconnect and check the saved colours.");
+    if(result.onboard_saved!==false)throw Error("The keyboard did not confirm removal.");
+    onboardNote="Onboard colours removed. Built-in keyboard lighting will start on reconnect.";toast("Onboard colours removed");
+  }catch(error){onboardTone="error";onboardNote=(error as Error).message;toast(onboardNote);}
+  finally{busy=false;hardwareUI();}
+};
 $("#refresh-device").onclick = () => void refreshDevice();
 $("#apply-hardware").onclick = async () => {
   if(isHosted){$("#setup-keyboard").click();return;}
@@ -718,6 +789,13 @@ $("#apply-hardware").onclick = async () => {
     ]),
   );
   try {
+    if(["Wave","Breathing","Reactive","Ripple"].includes(scene.effect)) {
+      if(!status.capabilities.effects)throw Error("This firmware cannot run native effects. No command sent.");
+      const effect=scene.effect;
+      await applyEffect(effect,Math.round(scene.speed),scale(scene.color,scene.brightness/100),status.device_id);
+      toast(effect+" command acknowledged. The keyboard runs this effect without the browser.");
+      return;
+    }
     const result = await applyFrame(scene.layout, snapshot, status.device_id);
     toast(
       `Keyboard updated · ${result.accepted_count} LED commands acknowledged`,

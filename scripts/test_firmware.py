@@ -12,7 +12,7 @@ binary=out/('bootloader-test.exe' if sys.platform=='win32' else 'bootloader-test
 subprocess.run([*flags,str(ROOT/'tests/firmware-fixture/offline_test.c'),str(ROOT/'tests/firmware-fixture/reference_parser.c'),'-o',str(binary)],check=True)
 result=subprocess.check_output([str(binary)],text=True)
 audits={}
-for name,length,factor,offset in [('candidate',65000,131,17),('restore',63848,137,23)]:
+for name,length,factor,offset in [('candidate',131072,131,17),('restore',63848,137,23)]:
     events=[json.loads(line) for line in subprocess.check_output([str(binary),'--transcript-'+name],text=True).splitlines()]
     image=bytes((i*factor+offset)%256 for i in range(length));audits[name]=audit(events,image)
     events[3]['body_hex']='00'*64

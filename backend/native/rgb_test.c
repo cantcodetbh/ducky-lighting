@@ -2,20 +2,20 @@
 #include <IOKit/hid/IOHIDManager.h>
 static CFMutableDictionaryRef properties;
 static CFTypeRef fake_property(IOHIDDeviceRef d,CFStringRef key){(void)d;return CFDictionaryGetValue(properties,key);}
-static unsigned get_calls,sets,active,last,pending,fault;
-static uint8_t sent_bodies[70][8];
+static unsigned get_calls,sets,active,last,pending,fault,wire=1,saved;
+static uint8_t sent_bodies[71][8];
 static unsigned fail_set_at;
 static IOReturn fake_get(IOHIDDeviceRef d,IOHIDReportType type,CFIndex id,uint8_t *b,CFIndex *length) {
     (void)d;(void)type;(void)id;++get_calls;
-    memcpy(b,"DRGB",4);b[4]=1;b[5]=(uint8_t)active;b[6]=(uint8_t)last;b[7]=(uint8_t)(pending!=0);if(pending)--pending;
+    memcpy(b,"DRGB",4);b[4]=(uint8_t)wire;b[5]=(uint8_t)active;b[6]=(uint8_t)last;b[7]=(uint8_t)((pending!=0)|(wire==2?saved<<1:0));if(pending)--pending;
     if(fault==3)b[0]='?';*length=fault==2?7:(fault==4&&get_calls==1)?0:8;
     return fault==1?kIOReturnTimeout:kIOReturnSuccess;
 }
 static IOReturn fake_set(IOHIDDeviceRef d,IOHIDReportType type,CFIndex id,const uint8_t *b,CFIndex length) {
-    (void)d;(void)type;(void)id;if(sets>=70 || length!=8)return kIOReturnError;
+    (void)d;(void)type;(void)id;if(sets>=71 || length!=8)return kIOReturnError;
     /* Model normal main-loop progress between paced SET requests. */
     if(pending)pending=0;
-    memcpy(sent_bodies[sets++],b,8);active=b[1]!=3;last=1;pending=1;
+    memcpy(sent_bodies[sets++],b,8);active=b[1]!=3&&b[1]!=5;if(b[1]==4)saved=1;if(b[1]==5)saved=0;last=1;pending=1;
     return fail_set_at==sets?kIOReturnError:kIOReturnSuccess;
 }
 #define IOHIDDeviceGetProperty fake_property
@@ -29,7 +29,7 @@ static IOReturn fake_set(IOHIDDeviceRef d,IOHIDReportType type,CFIndex id,const 
 #undef IOHIDDeviceSetReport
 #define CHECK(x) do{if(!(x)){fprintf(stderr,"FAIL RGB line%d: %s\n",__LINE__,#x);exit(1);}}while(0)
 static void number(CFStringRef key,int n){CFNumberRef p=CFNumberCreate(NULL,kCFNumberIntType,&n);CFDictionarySetValue(properties,key,p);CFRelease(p);}
-static void reset(void){memset(&io,0,sizeof(io));io.deadline=now()+8;get_calls=sets=active=last=pending=fault=fail_set_at=0;}
+static void reset(void){memset(&io,0,sizeof(io));io.deadline=now()+8;get_calls=sets=active=last=pending=fault=fail_set_at=saved=0;wire=1;}
 int main(void) {
     properties=CFDictionaryCreateMutable(NULL,0,&kCFTypeDictionaryKeyCallBacks,&kCFTypeDictionaryValueCallBacks);
     CFStringRef keys[]={CFSTR(kIOHIDVendorIDKey),CFSTR(kIOHIDProductIDKey),CFSTR(kIOHIDVersionNumberKey),CFSTR(kIOHIDMaxFeatureReportSizeKey),CFSTR(kIOHIDPrimaryUsagePageKey),CFSTR(kIOHIDPrimaryUsageKey)};
@@ -57,5 +57,17 @@ int main(void) {
     char *bad_device[]={"rgb","--device","-1","--release"};CHECK(!parse_request(4,bad_device,&r));
     char *fill[]={"rgb","--fill","1","2","255"};CHECK(parse_request(5,fill,&r));reset();CHECK(execute(NULL,&r));CHECK(sent_bodies[0][1]==2 && sent_bodies[0][4]==1 && sent_bodies[0][6]==255);
     char *generic[]={"rgb","--report","a0"};CHECK(!parse_request(3,generic,&r));
-    CFRelease(properties);puts("PASS: typed RGB/batch bounds, duplicate rejection, stock/revision guards, 70-command batch, pending/status acknowledgement, synchronous SET completion vs exact GET length8; first failure stops batch, no colour write on handshake failure. RAM-only SDK mocks.");return 0;
+    char *save_batch[]={"rgb","--save-batch",hex};CHECK(parse_request(3,save_batch,&r)&&r.count==71&&r.persistent);
+    reset();CHECK(!execute(NULL,&r)&&!sets&&!get_calls);
+    number(keys[2],0x9003);reset();CHECK(!execute(NULL,&r)&&!sets);
+    reset();wire=2;CHECK(execute(NULL,&r)&&sets==71&&io.accepted==71&&saved);CHECK(sent_bodies[70][1]==4);
+    char *clear[]={"rgb","--clear-onboard"};CHECK(parse_request(2,clear,&r));reset();wire=2;saved=1;active=1;CHECK(execute(NULL,&r)&&sets==1&&!saved&&!active);
+    char *short_save[]={"rgb","--save-batch","0000ff0000"};CHECK(!parse_request(3,short_save,&r));
+    char *effect[]={"rgb","--effect","6","5","255","0","0"};CHECK(parse_request(7,effect,&r)&&r.native_effect);
+    number(keys[2],0x9003);reset();CHECK(!execute(NULL,&r)&&!sets&&!get_calls);
+    number(keys[2],0x9004);reset();CHECK(!execute(NULL,&r)&&!sets);
+    reset();wire=2;CHECK(execute(NULL,&r)&&sets==1&&io.accepted==1&&sent_bodies[0][1]==6&&sent_bodies[0][2]==6);
+    effect[2]="2";CHECK(!parse_request(7,effect,&r));effect[2]="6";effect[3]="0";CHECK(!parse_request(7,effect,&r));
+    CHECK(parse_request(3,save_batch,&r));reset();wire=2;CHECK(execute(NULL,&r)&&saved&&sets==71);
+    CFRelease(properties);puts("PASS: typed native-effect revision/handshake guards and bounds, RGB/batch bounds, duplicate rejection, stock/revision guards, 70-command batch, pending/status acknowledgement, synchronous SET completion vs exact GET length8; first failure stops batch, no colour write on handshake failure. RAM-only SDK mocks.");return 0;
 }
