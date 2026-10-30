@@ -3,7 +3,7 @@ from pathlib import Path
 import os,sys
 FROZEN=bool(getattr(sys,'frozen',False))
 ROOT=Path(getattr(sys,'_MEIPASS',Path(__file__).resolve().parents[1]))
-VERSION='0.5.0-experimental'
+VERSION='0.5.1-experimental'
 def data_root():
     if not FROZEN:return ROOT/'data'
     if sys.platform=='darwin':return Path.home()/'Library/Application Support/Ducky Lighting'

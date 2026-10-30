@@ -23,7 +23,7 @@ if sys.platform=='darwin':
     shutil.copytree(STAGE/'companion',contents/'Resources/companion',dirs_exist_ok=True)
     shutil.copy2(ROOT/'packaging/DuckyLighting.icns',contents/'Resources/DuckyLighting.icns')
     run(['swiftc','-target',('arm64' if arch=='arm64' else 'x86_64')+'-apple-macos12.0',ROOT/'packaging/MacLauncher.swift','-framework','AppKit','-o',contents/'MacOS/DuckyLighting'])
-    info={'CFBundleIdentifier':'uk.co.nodeyard.duckylighting','CFBundleExecutable':'DuckyLighting','CFBundleName':'Ducky Lighting','CFBundleDisplayName':'Ducky Lighting','CFBundlePackageType':'APPL','CFBundleIconFile':'DuckyLighting.icns','CFBundleShortVersionString':'0.5.0','CFBundleVersion':'5','LSMinimumSystemVersion':'12.0','NSHighResolutionCapable':True,'NSPrincipalClass':'NSApplication','CFBundleURLTypes':[{'CFBundleURLName':'Ducky Lighting','CFBundleTypeRole':'Viewer','CFBundleURLSchemes':['ducky-lighting']}]}
+    info={'CFBundleIdentifier':'uk.co.nodeyard.duckylighting','CFBundleExecutable':'DuckyLighting','CFBundleName':'Ducky Lighting','CFBundleDisplayName':'Ducky Lighting','CFBundlePackageType':'APPL','CFBundleIconFile':'DuckyLighting.icns','CFBundleShortVersionString':'0.5.1','CFBundleVersion':'6','LSMinimumSystemVersion':'12.0','NSHighResolutionCapable':True,'NSPrincipalClass':'NSApplication','CFBundleURLTypes':[{'CFBundleURLName':'Ducky Lighting','CFBundleTypeRole':'Viewer','CFBundleURLSchemes':['ducky-lighting']}]}
     (contents/'Info.plist').write_bytes(plistlib.dumps(info))
     # Local preview is ad-hoc signed. Real Developer ID/notarization is a release gate.
     identity=os.environ.get('DUCKY_DEVELOPER_ID','-')
@@ -46,7 +46,7 @@ else:
     shutil.copytree(STAGE/'DuckyLighting',deb/'opt/ducky-lighting',symlinks=True)
     for dest,src in [('usr/share/applications/ducky-lighting.desktop','packaging/linux/ducky-lighting.desktop'),('usr/lib/udev/rules.d/70-ducky-lighting.rules','packaging/linux/70-ducky-lighting.rules'),('usr/share/icons/hicolor/256x256/apps/ducky-lighting.png','packaging/icon.png'),('DEBIAN/postinst','packaging/linux/postinst')]:
         path=deb/dest;path.parent.mkdir(parents=True,exist_ok=True);shutil.copy2(ROOT/src,path)
-    (deb/'DEBIAN/control').write_text(f'Package: ducky-lighting\nVersion: 0.5.0~experimental1\nSection: utils\nPriority: optional\nArchitecture: {"arm64" if arch=="arm64" else "amd64"}\nMaintainer: Ducky Lighting maintainers\nDepends: libc6 (>= 2.35), libudev1\nDescription: Local Ducky keyboard lighting editor and guarded HID companion\n Experimental cross-platform RGB and fixed-image firmware setup.\n')
+    (deb/'DEBIAN/control').write_text(f'Package: ducky-lighting\nVersion: 0.5.1~experimental1\nSection: utils\nPriority: optional\nArchitecture: {"arm64" if arch=="arm64" else "amd64"}\nMaintainer: Ducky Lighting maintainers\nDepends: libc6 (>= 2.35), libudev1\nDescription: Local Ducky keyboard lighting editor and guarded HID companion\n Experimental cross-platform RGB and fixed-image firmware setup.\n')
     container=OUT/f'Ducky-Lighting-Linux-{arch}.deb';run(['dpkg-deb','--build','--root-owner-group',deb,container])
     shutil.copy2(ROOT/'packaging/linux/70-ducky-lighting.rules',STAGE/'DuckyLighting/70-ducky-lighting.rules')
     portable=OUT/f'Ducky-Lighting-Linux-{arch}.tar.gz'

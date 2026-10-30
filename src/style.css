@@ -1927,129 +1927,106 @@ p {
   }
 }
 
-/* Guided setup: guided companion and explicit experimental firmware setup. */
-#setup-keyboard {
-  display: flex;
-  width: 100%;
-  justify-content: space-between;
-}
+/* Guided firmware setup uses the browser top layer and a real modal focus boundary. */
+#setup-keyboard { display:flex; width:100%; justify-content:space-between; }
+[hidden] { display:none !important; }
+html.setup-open { overflow:hidden; }
 .setup-dialog {
-  width: 590px;
-  max-width: calc(100vw - 28px);
-  max-height: calc(100vh - 48px);
-  padding: 26px;
-  margin: auto;
-  border: 1px solid var(--line);
-  border-radius: 13px;
-  background: var(--paper);
-  color: var(--ink);
-  box-shadow: 0 18px 80px #17112630;
-  overflow: auto;
+  width:680px; max-width:calc(100vw - 32px); max-height:calc(100dvh - 48px);
+  padding:0; margin:auto; border:0; border-radius:14px;
+  background:var(--paper); color:var(--ink); box-shadow:0 24px 90px #0f09264d;
+  overflow:hidden;
 }
-.setup-dialog::backdrop {
-  background: #17132670;
-}
-.setup-dialog .section-head {
-  align-items: flex-start;
-  margin-bottom: 24px;
-}
-.setup-dialog .section-head h2 {
-  font-size: 21px;
-  letter-spacing: -0.5px;
-}
-.setup-dialog .section-head p {
-  font-size: 12px;
-  margin-top: 5px;
-  color: var(--muted);
-}
-.setup-steps {
-  margin: 0;
-  padding: 0;
-  list-style: none;
-  counter-reset: setup;
-}
-.setup-steps > li {
-  counter-increment: setup;
-  display: grid;
-  grid-template-columns: 90px minmax(0, 1fr);
-  gap: 16px;
-  padding: 18px 0;
-  border-top: 1px solid var(--line);
-}
-.setup-step-label {
-  font-size: 11px;
-  color: var(--muted);
-}
-.setup-step-label::before {
-  content: counter(setup) ". ";
-  font-variant-numeric: tabular-nums;
-}
-.setup-steps strong {
-  font-size: 13px;
-  font-weight: 600;
-}
-.setup-steps p,
-.setup-recovery p {
-  font-size: 12px;
-  line-height: 1.7;
-  color: var(--muted);
-  margin: 7px 0 0;
-}
-.setup-steps .btn {
-  margin-top: 12px;
-  font-size: 11px;
-  white-space: normal;
-}
-.setup-download-note {
-  font-size: 10px !important;
-}
-.setup-recovery {
-  border-top: 1px solid var(--line);
-  padding-top: 15px;
-  margin-top: 5px;
-}
-.setup-recovery summary {
-  font-size: 11px;
-  color: var(--muted);
-}
-.setup-status {
-  font-size: 11px;
-  color: var(--muted);
-  line-height: 1.7;
-  margin-top: 18px;
-}
-[data-theme="dark"] .setup-dialog {
-  background: #26212f;
-  border-color: #5a446b;
-  box-shadow: 0 18px 80px #00000060;
-}
-@media (max-width: 650px) {
-  .setup-dialog {
-    padding: 20px;
-  }
-  .setup-steps > li {
-    grid-template-columns: 1fr;
-    gap: 5px;
-  }
-  .setup-dialog .section-head h2 {
-    font-size: 19px;
-  }
-}
-[hidden] {
-  display: none !important;
-}
-
-#firmware-tools { margin-top:14px; font-size:12px; }
-#firmware-tools summary { cursor:pointer; color:var(--accent); }
-.firmware-field { display:grid; gap:7px; margin-top:16px; font-size:12px; }
-.firmware-field input,.firmware-field select { width:100%; min-width:0; box-sizing:border-box; padding:9px; border:1px solid var(--line); border-radius:6px; background:var(--paper); color:var(--ink); font:inherit; }
-.firmware-check { display:flex; align-items:flex-start; gap:8px; margin:16px 0; font-size:12px; line-height:1.6; }
-.firmware-check input { margin-top:3px; flex:none; }
-.firmware-warning { padding:12px; border:1px solid #ba793a75; background:#bf863315; border-radius:7px; color:var(--ink)!important; }
-#firmware-progress progress { width:100%; margin-top:18px; accent-color:var(--accent); }
-#firmware-job-status { overflow-wrap:anywhere; }
+.setup-dialog[open] { display:flex; flex-direction:column; }
+.setup-dialog::backdrop { background:#171326a6; backdrop-filter:blur(3px); }
+.setup-top { display:flex; align-items:center; justify-content:space-between; padding:18px 24px 16px; flex:none; }
+.setup-brand { display:flex; align-items:center; gap:9px; color:var(--muted); font-size:13px; font-weight:500; }
+.setup-top .icon-btn { min-width:38px; color:var(--muted); }
+.setup-route { padding:0 28px 20px; border-bottom:1px solid var(--line); flex:none; }
+.setup-route ol { display:grid; grid-template-columns:repeat(5,minmax(0,1fr)); list-style:none; padding:0; margin:0; }
+.setup-route li { display:flex; align-items:center; gap:7px; color:var(--muted); font-size:11px; }
+.setup-route-mark { display:grid; place-items:center; width:23px; height:23px; flex:none; border:1px solid var(--line); border-radius:50%; font-size:11px; font-variant-numeric:tabular-nums; }
+.setup-route [data-state="current"] { color:var(--ink); font-weight:600; }
+.setup-route [data-state="current"] .setup-route-mark { color:var(--paper); background:var(--accent); border-color:var(--accent); }
+.setup-route [data-state="complete"] .setup-route-mark { color:var(--accent); border-color:var(--accent); }
+.setup-body { padding:26px 28px; overflow-y:auto; overscroll-behavior:contain; min-height:0; }
+.setup-heading { margin-bottom:22px; }
+.setup-heading h2 { margin:0; font-size:25px; font-weight:600; letter-spacing:-.6px; line-height:1.3; outline-offset:5px; }
+.setup-heading p { margin:9px 0 0; }
+.setup-dialog p { font-size:13px; line-height:1.65; color:var(--muted); text-wrap:pretty; }
+.setup-dialog .setup-fine { font-size:12px; }
+.setup-model { display:flex; flex-direction:column; gap:5px; padding:18px 20px; background:var(--page); border-radius:8px; }
+.setup-model span { font-size:12px; color:var(--muted); }
+.setup-model strong { font-size:24px; letter-spacing:.3px; font-weight:600; }
+.firmware-check { display:flex; align-items:flex-start; gap:10px; margin:20px 0 10px; font-size:13px; line-height:1.65; }
+.firmware-check input { width:16px; height:16px; margin:3px 0 0; flex:none; accent-color:var(--accent); }
+.firmware-field { display:grid; gap:8px; margin-top:20px; font-size:13px; line-height:1.6; }
+.firmware-field input,.firmware-field select { width:100%; min-width:0; box-sizing:border-box; padding:10px 12px; border:1px solid var(--line); border-radius:7px; background:var(--page); color:var(--ink); font:inherit; }
+.firmware-field input[type="file"] { padding:10px; font-size:12px; }
+.setup-caution { margin-top:22px; padding-top:18px; border-top:1px solid var(--line); }
+.setup-caution strong { font-size:13px; font-weight:600; }
+.setup-caution p { margin:6px 0 0; font-size:12px; }
+.setup-notice { background:var(--page); padding:12px 14px; border-radius:7px; }
+.setup-bottom { display:flex; align-items:center; justify-content:space-between; gap:14px; padding:18px 28px; border-top:1px solid var(--line); flex:none; }
+.setup-bottom #setup-step-count { font-size:11px; color:var(--muted); margin-right:auto; }
+.setup-dialog .btn.setup-primary { background:var(--accent); border-color:var(--accent); color:var(--paper); font-weight:600; min-height:42px; padding:10px 16px; text-decoration:none; }
+.setup-dialog .btn.setup-primary:hover:not(:disabled) { filter:brightness(1.08); }
+.setup-dialog .btn.setup-primary:disabled { opacity:.45; }
+.setup-file-line { display:flex; align-items:center; gap:12px; padding:14px 0 22px; }
+.setup-file-line > .icon { width:28px; height:28px; color:var(--muted); flex:none; }
+.setup-file-line > div { display:flex; flex-direction:column; gap:5px; }
+.setup-file-line strong { font-size:13px; font-weight:600; }
+.setup-file-line span { color:var(--muted); font-size:11px; }
+.setup-file-state { margin-left:auto; white-space:nowrap; }
+.setup-file-state[data-ready="true"] { color:var(--ink); font-weight:600; }
+.setup-alternative { margin-top:22px; font-size:12px; }
+.setup-alternative summary { cursor:pointer; color:var(--ink); min-height:32px; }
+.setup-inline-status { margin:14px 0 0; overflow-wrap:anywhere; }
+.setup-dialog kbd { display:inline-grid; place-items:center; font:600 12px Instrument,sans-serif; min-width:22px; height:24px; background:var(--page); border:1px solid var(--line); border-radius:5px; vertical-align:baseline; }
+.setup-gesture { display:flex; align-items:center; gap:16px; padding:20px; background:var(--page); border-radius:8px; }
+.setup-gesture > span .icon { width:34px; height:34px; color:var(--muted); }
+.setup-gesture kbd { min-width:42px; height:44px; font-size:22px; border-radius:7px; }
+.setup-gesture > div { display:flex; flex-direction:column; gap:4px; }
+.setup-gesture strong { font-size:14px; font-weight:600; }
+.setup-gesture div span { font-size:12px; color:var(--muted); }
+.setup-instructions { margin:20px 0; padding-left:21px; font-size:13px; line-height:1.8; }
+.setup-instructions li { padding:4px 0 4px 6px; }
+.setup-connection { display:flex; align-items:center; gap:8px; margin:18px 0; font-size:12px; color:var(--muted); }
+.setup-connection .circle { background:var(--muted); }
+.setup-review { margin:0; }
+.setup-review > div { display:flex; justify-content:space-between; gap:18px; padding:12px 0; border-bottom:1px solid var(--line); font-size:13px; }
+.setup-review dt { color:var(--muted); }
+.setup-review dd { margin:0; font-weight:500; text-align:right; }
+.setup-status { font-size:12px!important; line-height:1.65; margin:16px 0 0; }
+.setup-status:empty,.setup-inline-status:empty { display:none; }
+.setup-transfer { display:flex; align-items:center; gap:15px; padding:28px 0 15px; }
+.setup-transfer .icon { width:44px; height:44px; color:var(--muted); }
+.setup-transfer strong { font-size:16px; font-weight:500; }
+#firmware-meter { width:100%; accent-color:var(--accent); height:9px; }
+#setup-progress-count { font-variant-numeric:tabular-nums; font-size:12px; }
+.setup-finish-mark { display:grid; place-items:center; width:48px; height:48px; margin-bottom:18px; border-radius:50%; color:var(--ink); background:var(--accent-soft); }
+.setup-finish-mark .icon { width:25px; height:25px; }
+.setup-companion-mark .icon { width:52px; height:52px; margin:0 0 8px; color:var(--muted); }
 .setup-dialog a { color:var(--accent); }
-.setup-dialog a.btn { color:white; text-decoration:none; }
+.setup-download { margin-top:20px; }
+[data-theme="dark"] .setup-dialog { background:var(--paper); box-shadow:0 24px 90px #00000070; }
+@media (max-width:650px) {
+  .setup-dialog { max-width:calc(100vw - 24px); max-height:calc(100dvh - 24px); }
+  .setup-top { padding:12px 16px; }
+  .setup-route { padding:0 16px 16px; }
+  .setup-route li { flex-direction:column; align-items:center; gap:5px; font-size:10px; }
+  .setup-body { padding:22px 20px; }
+  .setup-heading h2 { font-size:23px; }
+  .setup-bottom { padding:14px 20px; gap:10px; }
+  .setup-bottom .setup-primary { flex:1; }
+  .setup-bottom #setup-step-count { display:none; }
+  .setup-gesture { gap:10px; padding:14px; }
+  .setup-gesture > span { display:none; }
+  .setup-review > div { font-size:12px; }
+  .setup-review dd { max-width:65%; }
+  .setup-file-line { flex-wrap:wrap; }
+  .setup-file-state { margin-left:40px; }
+}
 
 .onboard-profile { border-top:1px solid var(--line); margin-top:16px; padding-top:16px; }
 .onboard-profile h3 { font-size:13px; font-weight:600; margin:0; }
@@ -2077,3 +2054,5 @@ p {
 }
 
 .workspace-heading { padding-bottom:12px; }
+
+#setup-next .icon, #firmware-inspect .icon { transform:rotate(-90deg); }

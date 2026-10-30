@@ -2,7 +2,7 @@
 
 An RGB editor for the Ducky Mecha Mini. Set individual key colours, save lighting profiles and preview effects in your browser.
 
-[Open the editor](https://cantcodetbh.github.io/ducky-lighting/) · [Downloads](https://github.com/cantcodetbh/ducky-lighting/releases/tag/v0.5.0-experimental) · [Firmware guide](https://github.com/cantcodetbh/ducky-lighting/blob/main/docs/firmware.md)
+[Open the editor](https://cantcodetbh.github.io/ducky-lighting/) · [Downloads](https://github.com/cantcodetbh/ducky-lighting/releases/tag/v0.5.1-experimental) · [Firmware guide](https://github.com/cantcodetbh/ducky-lighting/blob/main/docs/firmware.md)
 
 ## Getting started
 
@@ -10,15 +10,17 @@ An RGB editor for the Ducky Mecha Mini. Set individual key colours, save lightin
 2. Open Ducky Lighting. The editor opens in your default browser.
 3. Connect your keyboard and open **Set up keyboard** from the device menu. Install custom9004 for native effects and onboard colours. Existing custom9002/9003 users can update through the same setup flow.
 
+Setup opens as a step-by-step dialog: check the keyboard, prepare files, connect in update mode, review and install, then reconnect. Opening it never starts flashing.
+
 The companion includes everything needed to run the app. Python and Node.js are only required for development.
 
 | Platform | Download |
 |---|---|
-| macOS — Apple Silicon | [DMG](https://github.com/cantcodetbh/ducky-lighting/releases/download/v0.5.0-experimental/Ducky-Lighting-macOS-arm64.dmg) |
-| macOS — Intel | [DMG](https://github.com/cantcodetbh/ducky-lighting/releases/download/v0.5.0-experimental/Ducky-Lighting-macOS-x64.dmg) |
-| Windows — x64 | [Installer](https://github.com/cantcodetbh/ducky-lighting/releases/download/v0.5.0-experimental/Ducky-Lighting-Windows-x64-Setup.exe) |
-| Debian / Ubuntu — x64 | [DEB](https://github.com/cantcodetbh/ducky-lighting/releases/download/v0.5.0-experimental/Ducky-Lighting-Linux-x64.deb) |
-| Linux — x64 portable | [Archive](https://github.com/cantcodetbh/ducky-lighting/releases/download/v0.5.0-experimental/Ducky-Lighting-Linux-x64.tar.gz) |
+| macOS — Apple Silicon | [DMG](https://github.com/cantcodetbh/ducky-lighting/releases/download/v0.5.1-experimental/Ducky-Lighting-macOS-arm64.dmg) |
+| macOS — Intel | [DMG](https://github.com/cantcodetbh/ducky-lighting/releases/download/v0.5.1-experimental/Ducky-Lighting-macOS-x64.dmg) |
+| Windows — x64 | [Installer](https://github.com/cantcodetbh/ducky-lighting/releases/download/v0.5.1-experimental/Ducky-Lighting-Windows-x64-Setup.exe) |
+| Debian / Ubuntu — x64 | [DEB](https://github.com/cantcodetbh/ducky-lighting/releases/download/v0.5.1-experimental/Ducky-Lighting-Linux-x64.deb) |
+| Linux — x64 portable | [Archive](https://github.com/cantcodetbh/ducky-lighting/releases/download/v0.5.1-experimental/Ducky-Lighting-Linux-x64.tar.gz) |
 
 The online editor also works on its own for creating and saving profiles. To control a keyboard, select **Connect keyboard** and open the installed companion. Safari and Chromium browsers are supported.
 

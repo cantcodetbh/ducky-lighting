@@ -14,14 +14,12 @@ Use a stable, direct USB connection. Disconnect other Ducky or Nuvoton devices a
 
 ## Install firmware
 
-1. Open the companion app, then choose **Set up keyboard → Install or restore firmware** from the device menu.
-2. Confirm that the underside label reads **DKME2061ST**.
-3. Click **Prepare official firmware**. The app downloads Ducky's V1.10 updater, verifies it and prepares the supported images locally. The EXE is never executed. Alternatively, select a local copy of `Ducky_Mecha_Mini_RGB_V1.10_DKME2061ST.exe`.
-4. Unplug the keyboard. Hold **D**, reconnect the cable, then release D. Typing and lighting may stop while the bootloader is active.
-5. Click **Check bootloader**. The app checks the interface, controller and configuration before allowing installation. This check does not erase flash.
-6. Choose **Install custom9004 · RGB, effects and onboard colours**. Read the warning, accept the risk and type **FLASH DKME2061ST**.
-7. Click **Erase application and install firmware**. Keep the cable connected and the companion running until the operation finishes.
-8. Once all packets are acknowledged, unplug the keyboard and reconnect normally with D released. Check that typing and lighting work, then use **Apply to keyboard** for colours or **Apply effect** for native animations.
+1. Open **Set up keyboard** from the device menu. A guided dialog opens over the editor. On the hosted site, open or download the local companion first.
+2. **Keyboard:** check the underside label, confirm **DKME2061ST**, and choose Ducky Lighting firmware or original Ducky V1.10 restoration.
+3. **Prepare:** select **Download & prepare**, or choose a local `Ducky_Mecha_Mini_RGB_V1.10_DKME2061ST.exe`. The companion verifies and prepares both exact images without executing the EXE. Continue when the files are ready.
+4. **Connect:** unplug the keyboard, hold **D** while reconnecting, then release it. Click **Check keyboard**. The check reads identity and configuration; it does not erase flash. Continue after it passes.
+5. **Install:** review the image and compatibility result, accept the risk, and type **FLASH DKME2061ST**. Select **Erase & install firmware** once. Keep the keyboard connected and the companion running while the transfer completes.
+6. **Finish:** unplug and reconnect normally without D. Wait for the normal connection, then confirm that typing and lighting work before selecting **Start editing**.
 
 Confirmation expires after two minutes. If it expires, repeat the bootloader check.
 
@@ -37,7 +35,7 @@ If D-on-connect no longer brings back the bootloader, stop attempting updates. H
 
 ## Restore manufacturer firmware
 
-Follow the same preparation and bootloader-check steps, then choose **Restore manufacturer V1.10 · built-in lighting** before confirming installation.
+Follow the same preparation and bootloader-check steps, then choose **Original Ducky firmware · V1.10** on the Keyboard step before preparing and confirming installation.
 
 Restoration uses manufacturer V1.10. It is not a backup of the keyboard's previous firmware, including V1.08, and saved keyboard settings may be lost. Browser RGB control will no longer be available after returning to stock firmware.
 
