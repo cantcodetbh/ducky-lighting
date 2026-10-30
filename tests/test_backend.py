@@ -1,3 +1,4 @@
+from unittest.mock import patch
 import sys,json,tempfile,threading,http.client,unittest
 from pathlib import Path
 sys.path.insert(0,str(Path(__file__).resolve().parents[1]/'backend'))
@@ -59,7 +60,12 @@ class Backend(unittest.TestCase):
         hw.invoke=lambda args:self.fail('9003 must not receive effect commands');self.assertFalse(hw.effect('Reactive',5,[255,0,0],'123')['ok'])
         calls=[];hw.status=lambda force=False:{'mode':'available','device_id':'123','capabilities':{'effects':True}}
         hw.invoke=lambda args:calls.append(args) or {'ok':True,'accepted_count':1}
-        self.assertTrue(hw.effect('Ripple',7,[255,1,2],'123')['ok']);self.assertEqual(calls,[['--device','123','--effect','4','7','255','1','2']])
+        with patch('hardware.sys.platform','darwin'),patch('hardware.BINARY') as binary:
+            binary.exists.return_value=True
+            self.assertTrue(hw.effect('Ripple',7,[255,1,2],'123')['ok']);self.assertEqual(calls,[['--device','123','--effect','4','7','255','1','2']])
+        calls.clear();hw.portable_command=lambda *args:calls.append(args) or {'ok':True,'accepted_count':1}
+        with patch('hardware.sys.platform','linux'):
+            self.assertTrue(hw.effect('Reactive',5,[1,2,3],'123')['ok']);self.assertEqual(calls,[('effect',[6,5,1,2,3],'123')])
     def test_profile_persistence_and_invalid_file_preserved(self):
         scene={'model':'black','layout':'iso','effect':'Static','color':'#ff0000','brightness':80,'speed':5,'paints':{'4:5':'#123456'}};p={'id':'abc','name':'Evening','scene':scene}
         self.assertEqual(self.request('/api/profiles',{'profiles':[p]})[0],200)
