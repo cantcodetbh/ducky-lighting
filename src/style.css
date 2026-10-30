@@ -2056,3 +2056,8 @@ html.setup-open { overflow:hidden; }
 .workspace-heading { padding-bottom:12px; }
 
 #setup-next .icon, #firmware-inspect .icon { transform:rotate(-90deg); }
+
+.setup-dialog:focus, #setup-title:focus { outline:none; }
+
+.setup-dialog[data-mode="local"] { height:760px; }
+.setup-dialog .setup-body { flex:1; }

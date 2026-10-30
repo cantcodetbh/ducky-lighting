@@ -132,6 +132,7 @@ export function mountSetupFlow(companionLink: () => string) {
     awaitingOutcome = false;
   let mutationEpoch = 0,
     recoverOnOpen = true;
+  let connectionLost = false;
   let activeJob: string | null = null,
     timer: ReturnType<typeof setInterval> | undefined,
     request: Promise<void> | null = null;
@@ -172,6 +173,7 @@ export function mountSetupFlow(companionLink: () => string) {
       );
       if (step === 3 && !critical() && !activeJob) step = 2;
     }
+    dialog.dataset.mode = isHosted ? "hosted" : "local";
     const busy = critical(),
       job = policy?.job,
       failed = !!activeJob && job?.id === activeJob && job.state === "failed";
@@ -316,6 +318,7 @@ export function mountSetupFlow(companionLink: () => string) {
     el<HTMLInputElement>("setup-boot-confirm").disabled = !normal();
     if (!normal()) el<HTMLInputElement>("setup-boot-confirm").checked = false;
     const next = el<HTMLButtonElement>("setup-next");
+    next.classList.toggle("setup-primary", !isHosted);
     set(
       "setup-next",
       isHosted
@@ -362,6 +365,11 @@ export function mountSetupFlow(companionLink: () => string) {
         const incoming = await firmwarePolicy();
         if (epoch !== mutationEpoch) return;
         policy = incoming;
+        if (connectionLost) {
+          set("setup-status", "");
+          connectionLost = false;
+        }
+        const previousStep = step;
         const job = policy!.job;
         if (
           job?.state === "programming" ||
@@ -384,11 +392,20 @@ export function mountSetupFlow(companionLink: () => string) {
           );
         }
         render();
+        if (previousStep !== step && dialog.open) {
+          el("setup-title").focus();
+          dialog.querySelector<HTMLElement>(".setup-body")!.scrollTop = 0;
+        }
       } catch {
+        connectionLost = true;
         const uncertain = critical();
         if (!uncertain) {
           policy = null;
           invalidate();
+          set(
+            "firmware-probe-status",
+            "The connection was interrupted. Check the keyboard again before continuing.",
+          );
           if (step === 3 && !activeJob) step = 2;
         }
         set(
